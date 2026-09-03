@@ -1,0 +1,6 @@
+{
+  "name": "GST Accounting & e-Invoice ERP",
+  "description": "Multi-company, role-based professional Indian Accounting, GST, e-Invoice, E-Way Bill and Inventory management system with mobile OTP login.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
