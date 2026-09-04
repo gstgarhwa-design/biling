@@ -1,0 +1,125 @@
+@import "tailwindcss";
+
+@layer utilities {
+  .frosted-bg {
+    background-image: 
+      radial-gradient(at 0% 0%, rgba(99, 102, 241, 0.12) 0px, transparent 45%),
+      radial-gradient(at 100% 0%, rgba(168, 85, 247, 0.12) 0px, transparent 45%),
+      radial-gradient(at 100% 100%, rgba(236, 72, 153, 0.10) 0px, transparent 45%),
+      radial-gradient(at 0% 100%, rgba(59, 130, 246, 0.08) 0px, transparent 40%);
+  }
+
+  .frosted-glass {
+    background-color: rgba(255, 255, 255, 0.70);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border: 1px solid rgba(255, 255, 255, 0.60);
+  }
+
+  .dark .frosted-glass {
+    background-color: rgba(15, 23, 42, 0.65);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+  }
+
+  .frosted-glass-card {
+    background-color: rgba(255, 255, 255, 0.75);
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+    border: 1px solid rgba(255, 255, 255, 0.60);
+    box-shadow: 0 4px 20px -2px rgba(99, 102, 241, 0.05);
+  }
+
+  .dark .frosted-glass-card {
+    background-color: rgba(15, 23, 42, 0.65);
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.25);
+  }
+
+  .frosted-glass-subtle {
+    background-color: rgba(255, 255, 255, 0.45);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.40);
+  }
+
+  .dark .frosted-glass-subtle {
+    background-color: rgba(30, 41, 59, 0.45);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+  }
+}
+
+/* Professional GST Print Optimization Styles */
+@media print {
+  body, html {
+    background: #ffffff !important;
+    color: #0f172a !important;
+    height: auto !important;
+    overflow: visible !important;
+  }
+  
+  /* Strict Print Visibility */
+  .print\:hidden {
+    display: none !important;
+  }
+  
+  .print\:block {
+    display: block !important;
+  }
+  
+  .print\:w-full {
+    width: 100% !important;
+    max-width: 100% !important;
+  }
+  
+  .print\:col-span-full {
+    grid-column: 1 / -1 !important;
+    width: 100% !important;
+  }
+  
+  .print\:p-0 {
+    padding: 0 !important;
+  }
+  
+  .print\:m-0 {
+    margin: 0 !important;
+  }
+  
+  .print\:shadow-none {
+    box-shadow: none !important;
+  }
+  
+  .print\:border-none {
+    border: none !important;
+  }
+
+  /* Table Pagination Fixes */
+  table {
+    page-break-inside: auto !important;
+    width: 100% !important;
+  }
+  
+  tr {
+    page-break-inside: avoid !important;
+    page-break-after: auto !important;
+  }
+  
+  thead {
+    display: table-header-group !important;
+  }
+  
+  tfoot {
+    display: table-footer-group !important;
+  }
+
+  @page {
+    size: A4 portrait;
+    margin: 10mm;
+  }
+}
+
