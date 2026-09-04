@@ -207,68 +207,71 @@ const MainLayout: React.FC = () => {
   };
 
   return (
-    <div className="h-screen overflow-hidden bg-slate-50 dark:bg-slate-950 text-slate-800 dark:text-slate-100 frosted-bg flex flex-col font-sans transition-colors duration-200 selection:bg-indigo-500/20">
-      {/* Top Navigation Header */}
-      <div className="shrink-0 relative z-40">
-        <Header 
-          onToggleSidebar={() => setIsSidebarOpen(prev => !prev)}
-          activeModule={activeModule}
-        />
-      </div>
+    <div className="min-h-screen bg-slate-100/90 dark:bg-slate-950 text-slate-800 dark:text-slate-100 flex flex-col items-center justify-start py-0 lg:py-2.5 xl:py-3 px-0 sm:px-3 lg:px-4 antialiased selection:bg-indigo-500/20 font-sans transition-colors duration-200">
+      {/* Standard Centered App Container: Max-w-7xl / 1440px with equal margins and framing */}
+      <div className="w-full max-w-7xl 2xl:max-w-[1440px] mx-auto h-screen lg:h-[calc(100vh-1.25rem)] xl:h-[calc(100vh-1.5rem)] flex flex-col bg-white dark:bg-slate-900 border-0 lg:border lg:border-slate-200/80 dark:lg:border-slate-800/80 lg:rounded-3xl shadow-none lg:shadow-2xl overflow-hidden relative">
+        {/* Top Navigation Header */}
+        <div className="shrink-0 relative z-40">
+          <Header 
+            onToggleSidebar={() => setIsSidebarOpen(prev => !prev)}
+            activeModule={activeModule}
+          />
+        </div>
 
-      {/* Main Structural Body: Sidebar is fixed in height, only main scrolls */}
-      <div className="flex-1 flex overflow-hidden relative z-10">
-        {/* Desktop Collapsible Sidebar (Locked & Fixed behind header) */}
-        <Sidebar 
+        {/* Main Structural Body: Sidebar is fixed in height, only main scrolls */}
+        <div className="flex-1 flex overflow-hidden relative z-10">
+          {/* Desktop Collapsible Sidebar (Locked & Fixed behind header) */}
+          <Sidebar 
+            activeModule={activeModule}
+            setActiveModule={setActiveModule}
+            isOpen={isSidebarOpen}
+            onClose={() => setIsSidebarOpen(false)}
+          />
+
+          {/* Dynamic Center Work Area (Only this area scrolls) */}
+          <main className="flex-1 overflow-y-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-5">
+            <div className="w-full">
+              {renderActiveModule()}
+            </div>
+          </main>
+        </div>
+
+        {/* Mobile-first Floating Bottom Nav with Speed Dial */}
+        <MobileBottomNav
           activeModule={activeModule}
           setActiveModule={setActiveModule}
-          isOpen={isSidebarOpen}
-          onClose={() => setIsSidebarOpen(false)}
+          onOpenMobileMenu={() => setIsSidebarOpen(true)}
+          onQuickAction={(action) => {
+            if (action === 'NEW_SALE') {
+              setActiveModule('SALES');
+              setQuickCreateInvoice(true);
+            } else if (action === 'NEW_PURCHASE') {
+              setActiveModule('PURCHASE');
+              setQuickCreatePurchase(true);
+            } else if (action === 'NEW_PARTY') {
+              setActiveModule('PARTY_MASTER');
+              setQuickCreateParty(true);
+            } else if (action === 'NEW_ITEM') {
+              setActiveModule('ITEM_MASTER');
+              setQuickCreateItem(true);
+            }
+          }}
         />
 
-        {/* Dynamic Center Work Area (Only this area scrolls) */}
-        <main className="flex-1 overflow-y-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-5">
-          <div className="max-w-7xl mx-auto">
-            {renderActiveModule()}
-          </div>
-        </main>
+        {/* Professional Tax Invoice Print Preview with IRN & UPI QR Modal */}
+        {selectedInvoiceForPrint && (
+          <InvoicePrintModal
+            invoice={selectedInvoiceForPrint}
+            onClose={() => setSelectedInvoiceForPrint(null)}
+          />
+        )}
+
+        {/* Mobile Number + OTP Login Modal */}
+        <LoginModal
+          isOpen={isLoginModalOpen}
+          onClose={() => setIsLoginModalOpen(false)}
+        />
       </div>
-
-      {/* Mobile-first Floating Bottom Nav with Speed Dial */}
-      <MobileBottomNav
-        activeModule={activeModule}
-        setActiveModule={setActiveModule}
-        onOpenMobileMenu={() => setIsSidebarOpen(true)}
-        onQuickAction={(action) => {
-          if (action === 'NEW_SALE') {
-            setActiveModule('SALES');
-            setQuickCreateInvoice(true);
-          } else if (action === 'NEW_PURCHASE') {
-            setActiveModule('PURCHASE');
-            setQuickCreatePurchase(true);
-          } else if (action === 'NEW_PARTY') {
-            setActiveModule('PARTY_MASTER');
-            setQuickCreateParty(true);
-          } else if (action === 'NEW_ITEM') {
-            setActiveModule('ITEM_MASTER');
-            setQuickCreateItem(true);
-          }
-        }}
-      />
-
-      {/* Professional Tax Invoice Print Preview with IRN & UPI QR Modal */}
-      {selectedInvoiceForPrint && (
-        <InvoicePrintModal
-          invoice={selectedInvoiceForPrint}
-          onClose={() => setSelectedInvoiceForPrint(null)}
-        />
-      )}
-
-      {/* Mobile Number + OTP Login Modal */}
-      <LoginModal
-        isOpen={isLoginModalOpen}
-        onClose={() => setIsLoginModalOpen(false)}
-      />
     </div>
   );
 };

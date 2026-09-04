@@ -23,7 +23,8 @@ import {
   AlertCircle,
   Database,
   Check,
-  Briefcase
+  Briefcase,
+  X
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -128,28 +129,40 @@ export const Sidebar: React.FC<SidebarProps> = ({
       {isOpen && (
         <div
           onClick={onClose}
-          className="fixed inset-0 bg-slate-900/40 backdrop-blur-xs z-20 lg:hidden"
+          className="fixed inset-0 bg-slate-900/50 backdrop-blur-xs z-50 lg:hidden"
         />
       )}
 
       <aside
-        className={`fixed lg:sticky top-0 left-0 z-20 lg:z-10 h-screen w-64 bg-white/40 dark:bg-slate-900/50 backdrop-blur-xl text-slate-700 dark:text-slate-200 flex flex-col transition-transform duration-200 ease-in-out ${
+        className={`fixed lg:static top-0 left-0 z-50 lg:z-10 h-screen lg:h-full w-64 bg-white/95 dark:bg-slate-900/95 lg:bg-white/40 lg:dark:bg-slate-900/50 backdrop-blur-xl text-slate-700 dark:text-slate-200 flex flex-col transition-transform duration-200 ease-in-out shrink-0 ${
           isOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
-        } border-r border-slate-200/50 dark:border-slate-800/50 shadow-xl lg:shadow-none`}
+        } border-r border-slate-200/50 dark:border-slate-800/50 shadow-2xl lg:shadow-none`}
       >
         {/* Brand Header */}
-        <div className="h-16 px-5 flex items-center gap-3 border-b border-slate-200/50 dark:border-slate-800/50 bg-white/30 dark:bg-slate-950/30 backdrop-blur-md shrink-0">
-          <div className="w-10 h-10 bg-indigo-600 rounded-xl flex items-center justify-center text-white font-bold text-xl shadow-lg shadow-indigo-500/25 shrink-0">
-            A
+        <div className="h-16 px-4 sm:px-5 flex items-center justify-between border-b border-slate-200/50 dark:border-slate-800/50 bg-white/30 dark:bg-slate-950/30 backdrop-blur-md shrink-0">
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="w-10 h-10 bg-indigo-600 rounded-xl flex items-center justify-center text-white font-bold text-xl shadow-lg shadow-indigo-500/25 shrink-0">
+              A
+            </div>
+            <div className="flex flex-col min-w-0">
+              <span className="text-base font-bold tracking-tight text-slate-900 dark:text-white leading-tight truncate">
+                AccuGST Pro
+              </span>
+              <span className="text-[10px] text-slate-500 dark:text-slate-400 uppercase tracking-widest font-semibold truncate">
+                Enterprise Edition
+              </span>
+            </div>
           </div>
-          <div className="flex flex-col min-w-0">
-            <span className="text-base font-bold tracking-tight text-slate-900 dark:text-white leading-tight truncate">
-              AccuGST Pro
-            </span>
-            <span className="text-[10px] text-slate-500 dark:text-slate-400 uppercase tracking-widest font-semibold truncate">
-              Enterprise Edition
-            </span>
-          </div>
+
+          {/* Accessible Mobile Drawer Close Button */}
+          <button
+            type="button"
+            onClick={onClose}
+            className="lg:hidden min-w-[40px] min-h-[40px] flex items-center justify-center p-2 rounded-xl text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+            aria-label="Close Navigation Drawer"
+          >
+            <X className="w-5 h-5" />
+          </button>
         </div>
 
         {/* Navigation items list */}

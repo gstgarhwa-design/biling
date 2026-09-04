@@ -23,7 +23,9 @@ import {
   Copy,
   Edit3,
   ChevronDown,
-  Check
+  Check,
+  Printer,
+  ChevronRight
 } from 'lucide-react';
 import { isDateInFiscalPeriod, FISCAL_MONTHS } from '../utils/financialYears';
 import { SalesInvoice } from '../types';
@@ -756,9 +758,10 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
             </div>
             <button
               onClick={() => handleNavigate('sales-invoices')}
-              className="text-xs text-indigo-600 dark:text-indigo-400 hover:underline font-bold"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white/70 dark:bg-slate-800/70 hover:bg-indigo-50 dark:hover:bg-indigo-950/40 text-slate-700 dark:text-slate-300 hover:text-indigo-600 dark:hover:text-indigo-400 text-xs font-semibold shadow-2xs hover:shadow-xs transition-all cursor-pointer"
             >
-              View All Register &rarr;
+              <span>View All Register</span>
+              <ChevronRight className="w-3.5 h-3.5" />
             </button>
           </div>
 
@@ -809,10 +812,11 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                         <div className="flex items-center justify-end gap-1.5 flex-wrap">
                           <button
                             onClick={() => onViewInvoice ? onViewInvoice(inv) : handleNavigate('sales-invoices')}
-                            className="px-2 py-1 rounded-lg bg-indigo-50 dark:bg-indigo-950/50 text-indigo-700 dark:text-indigo-300 hover:bg-indigo-100 text-[11px] font-bold transition-colors"
+                            className="px-2.5 py-1 rounded-lg bg-indigo-50 dark:bg-indigo-950/50 text-indigo-700 dark:text-indigo-300 hover:bg-indigo-100 border border-indigo-200/60 dark:border-indigo-800/60 text-[11px] font-bold flex items-center gap-1 transition-colors cursor-pointer shadow-2xs"
                             title="Print / View Invoice"
                           >
-                            Print
+                            <Printer className="w-3 h-3" />
+                            <span>Print</span>
                           </button>
 
                           {isIrnLocked ? (
@@ -928,9 +932,10 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
             </h2>
             <button 
               onClick={() => handleNavigate('party-master')}
-              className="text-xs text-indigo-600 dark:text-indigo-400 hover:underline font-bold"
+              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg border border-slate-200 dark:border-slate-700 bg-white/70 dark:bg-slate-800/70 hover:bg-indigo-50 dark:hover:bg-indigo-950/40 text-slate-700 dark:text-slate-300 hover:text-indigo-600 dark:hover:text-indigo-400 text-xs font-semibold shadow-2xs transition-all cursor-pointer"
             >
-              View All
+              <span>View All</span>
+              <ChevronRight className="w-3 h-3" />
             </button>
           </div>
           <div className="divide-y divide-slate-100/70 dark:divide-slate-800/50">
@@ -958,9 +963,10 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
             </h2>
             <button 
               onClick={() => handleNavigate('party-master')}
-              className="text-xs text-indigo-600 dark:text-indigo-400 hover:underline font-bold"
+              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg border border-slate-200 dark:border-slate-700 bg-white/70 dark:bg-slate-800/70 hover:bg-amber-50 dark:hover:bg-amber-950/40 text-slate-700 dark:text-slate-300 hover:text-amber-600 dark:hover:text-amber-400 text-xs font-semibold shadow-2xs transition-all cursor-pointer"
             >
-              View All
+              <span>View All</span>
+              <ChevronRight className="w-3 h-3" />
             </button>
           </div>
           <div className="divide-y divide-slate-100/70 dark:divide-slate-800/50">
@@ -988,9 +994,10 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
             </h2>
             <button 
               onClick={() => handleNavigate('item-master')}
-              className="text-xs text-indigo-600 dark:text-indigo-400 hover:underline font-bold"
+              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg border border-slate-200 dark:border-slate-700 bg-white/70 dark:bg-slate-800/70 hover:bg-emerald-50 dark:hover:bg-emerald-950/40 text-slate-700 dark:text-slate-300 hover:text-emerald-600 dark:hover:text-emerald-400 text-xs font-semibold shadow-2xs transition-all cursor-pointer"
             >
-              Inventory
+              <span>Inventory</span>
+              <ChevronRight className="w-3 h-3" />
             </button>
           </div>
           <div className="divide-y divide-slate-100/70 dark:divide-slate-800/50">

@@ -143,7 +143,7 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
           {/* Home */}
           <button
             onClick={() => setActiveModule('DASHBOARD')}
-            className={`flex flex-col items-center justify-center py-1 rounded-xl transition-colors ${
+            className={`flex flex-col items-center justify-center py-1 min-h-[44px] rounded-xl transition-colors cursor-pointer ${
               activeModule === 'DASHBOARD' || activeModule === 'dashboard' ? 'text-indigo-600 dark:text-indigo-400 font-bold' : 'text-slate-500 dark:text-slate-400'
             }`}
           >
@@ -154,7 +154,7 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
           {/* Sales */}
           <button
             onClick={() => setActiveModule('SALES')}
-            className={`flex flex-col items-center justify-center py-1 rounded-xl transition-colors ${
+            className={`flex flex-col items-center justify-center py-1 min-h-[44px] rounded-xl transition-colors cursor-pointer ${
               activeModule === 'SALES' || activeModule.startsWith('sales') ? 'text-indigo-600 dark:text-indigo-400 font-bold' : 'text-slate-500 dark:text-slate-400'
             }`}
           >
@@ -168,7 +168,7 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
           {/* Purchase */}
           <button
             onClick={() => setActiveModule('PURCHASE')}
-            className={`flex flex-col items-center justify-center py-1 rounded-xl transition-colors ${
+            className={`flex flex-col items-center justify-center py-1 min-h-[44px] rounded-xl transition-colors cursor-pointer ${
               activeModule === 'PURCHASE' || activeModule.startsWith('purchase') ? 'text-indigo-600 dark:text-indigo-400 font-bold' : 'text-slate-500 dark:text-slate-400'
             }`}
           >
@@ -179,7 +179,7 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
           {/* More Menu */}
           <button
             onClick={onOpenMobileMenu}
-            className="flex flex-col items-center justify-center py-1 rounded-xl text-slate-500 dark:text-slate-400"
+            className="flex flex-col items-center justify-center py-1 min-h-[44px] rounded-xl text-slate-500 dark:text-slate-400 cursor-pointer"
           >
             <Menu className="w-5 h-5" />
             <span className="text-[10px] mt-0.5">More</span>

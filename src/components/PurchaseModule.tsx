@@ -849,12 +849,13 @@ export const PurchaseModule: React.FC<PurchaseModuleProps> = ({
                         </div>
                       </td>
                       <td className="px-4 py-3 text-right">
-                        <div className="flex items-center justify-end gap-1">
+                        <div className="flex items-center justify-end gap-1.5">
                           {/* View & Print Button */}
                           <button
                             onClick={() => setSelectedPrintBill(bill)}
-                            className="p-1.5 text-slate-500 hover:text-slate-900 hover:bg-slate-100 dark:hover:bg-slate-800 dark:hover:text-white rounded-lg transition-colors cursor-pointer"
+                            className="p-2 border border-slate-200/80 dark:border-slate-700/80 bg-white/80 dark:bg-slate-800/80 text-slate-600 hover:text-indigo-600 dark:text-slate-300 dark:hover:text-indigo-400 hover:bg-indigo-50/60 dark:hover:bg-indigo-950/40 rounded-lg shadow-2xs hover:shadow-xs transition-all cursor-pointer"
                             title="View / Print Purchase Voucher"
+                            aria-label="View or Print Purchase Voucher"
                           >
                             <Eye className="w-4 h-4" />
                           </button>
@@ -862,8 +863,9 @@ export const PurchaseModule: React.FC<PurchaseModuleProps> = ({
                           {/* Edit / Update Button */}
                           <button
                             onClick={() => handleOpenEdit(bill)}
-                            className="p-1.5 text-amber-600 hover:text-amber-700 hover:bg-amber-50 dark:hover:bg-amber-950/40 rounded-lg transition-colors cursor-pointer"
+                            className="p-2 border border-amber-200/80 dark:border-amber-800/60 bg-amber-50/50 dark:bg-amber-950/30 text-amber-700 dark:text-amber-400 hover:bg-amber-100 dark:hover:bg-amber-900/50 rounded-lg shadow-2xs hover:shadow-xs transition-all cursor-pointer"
                             title="Update / Edit Purchase Bill"
+                            aria-label="Edit Purchase Bill"
                           >
                             <Edit className="w-4 h-4" />
                           </button>
@@ -871,8 +873,9 @@ export const PurchaseModule: React.FC<PurchaseModuleProps> = ({
                           {/* Return (Debit Note) Button */}
                           <button
                             onClick={() => setReturningPurchase(bill)}
-                            className="p-1.5 text-rose-600 hover:text-rose-700 hover:bg-rose-50 dark:hover:bg-rose-950/40 rounded-lg transition-colors cursor-pointer"
+                            className="p-2 border border-rose-200/80 dark:border-rose-800/60 bg-rose-50/50 dark:bg-rose-950/30 text-rose-700 dark:text-rose-400 hover:bg-rose-100 dark:hover:bg-rose-900/50 rounded-lg shadow-2xs hover:shadow-xs transition-all cursor-pointer"
                             title="Issue Purchase Return (Debit Note)"
+                            aria-label="Issue Purchase Return"
                           >
                             <CornerDownRight className="w-4 h-4" />
                           </button>
@@ -884,8 +887,9 @@ export const PurchaseModule: React.FC<PurchaseModuleProps> = ({
                                 deletePurchaseInvoice(bill.id);
                               }
                             }}
-                            className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/40 rounded-lg transition-colors cursor-pointer"
+                            className="p-2 border border-slate-200/80 dark:border-slate-700/80 bg-white/80 dark:bg-slate-800/80 text-slate-400 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/40 hover:border-red-200 rounded-lg shadow-2xs hover:shadow-xs transition-all cursor-pointer"
                             title="Delete purchase bill"
+                            aria-label="Delete Purchase Bill"
                           >
                             <Trash2 className="w-4 h-4" />
                           </button>
@@ -905,9 +909,10 @@ export const PurchaseModule: React.FC<PurchaseModuleProps> = ({
                         </p>
                         <button
                           onClick={handleOpenCreate}
-                          className="mt-2 px-3.5 py-1.5 rounded-lg bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs"
+                          className="mt-2 px-4 py-2 min-h-[40px] rounded-xl bg-amber-600 hover:bg-amber-700 active:bg-amber-800 text-white font-bold text-xs inline-flex items-center gap-2 shadow-sm transition-all cursor-pointer active:scale-98"
                         >
-                          + Record Purchase Bill
+                          <Plus className="w-4 h-4 stroke-[3]" />
+                          <span>Record Purchase Bill</span>
                         </button>
                       </div>
                     </td>
@@ -964,10 +969,12 @@ export const PurchaseModule: React.FC<PurchaseModuleProps> = ({
                       {dn.reason}
                     </td>
                     <td className="px-4 py-3 text-right">
-                      <div className="flex items-center justify-end gap-1">
+                      <div className="flex items-center justify-end gap-1.5">
                         <button
                           onClick={() => setSelectedPrintDebitNote(dn)}
-                          className="px-2.5 py-1 rounded-lg bg-indigo-50 hover:bg-indigo-100 dark:bg-indigo-950/60 dark:hover:bg-indigo-900/80 text-indigo-700 dark:text-indigo-300 font-semibold text-xs flex items-center gap-1 transition-colors cursor-pointer"
+                          className="px-2.5 py-1.5 min-h-[34px] rounded-lg bg-indigo-50 hover:bg-indigo-100 dark:bg-indigo-950/60 dark:hover:bg-indigo-900/80 text-indigo-700 dark:text-indigo-300 font-semibold text-xs flex items-center gap-1.5 border border-indigo-200/60 dark:border-indigo-800/60 transition-colors cursor-pointer shadow-2xs"
+                          title="Print Debit Note"
+                          aria-label="Print Debit Note"
                         >
                           <Printer className="w-3.5 h-3.5" />
                           <span>Print</span>
@@ -978,8 +985,9 @@ export const PurchaseModule: React.FC<PurchaseModuleProps> = ({
                               deleteDebitNote(dn.id);
                             }
                           }}
-                          className="p-1 text-slate-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/40 rounded transition-colors cursor-pointer"
+                          className="p-1.5 border border-slate-200/80 dark:border-slate-700/80 bg-white/80 dark:bg-slate-800/80 text-slate-400 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/40 hover:border-red-200 rounded-lg transition-colors cursor-pointer shadow-2xs"
                           title="Delete debit note"
+                          aria-label="Delete debit note"
                         >
                           <Trash2 className="w-3.5 h-3.5" />
                         </button>
@@ -1357,8 +1365,9 @@ export const PurchaseModule: React.FC<PurchaseModuleProps> = ({
                                 type="button"
                                 onClick={() => handleRemoveLineItem(row.id)}
                                 disabled={calculatedItems.length <= 1}
-                                className="p-1 text-slate-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/40 rounded transition-colors disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer"
-                                title="Remove row"
+                                className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/40 rounded-lg border border-transparent hover:border-red-200 dark:hover:border-red-900/60 transition-colors disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer shadow-2xs"
+                                title="Remove line item"
+                                aria-label="Remove line item"
                               >
                                 <Trash2 className="w-3.5 h-3.5" />
                               </button>
@@ -1837,10 +1846,23 @@ export const PurchaseModule: React.FC<PurchaseModuleProps> = ({
       {returningPurchase && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 backdrop-blur-xs p-4 overflow-y-auto">
           <div className="w-full max-w-md bg-white dark:bg-slate-900 rounded-3xl shadow-2xl border border-slate-200 dark:border-slate-800 p-6">
-            <h2 className="text-base font-bold text-slate-900 dark:text-white mb-1">
-              Issue Debit Note (Purchase Return)
-            </h2>
-            <p className="text-xs text-slate-500 mb-4">Against bill #{returningPurchase.supplierInvoiceNo || returningPurchase.invoiceNo}</p>
+            <div className="flex items-center justify-between pb-3 border-b border-slate-200 dark:border-slate-800 mb-4">
+              <div>
+                <h2 className="text-base font-bold text-slate-900 dark:text-white mb-0.5">
+                  Issue Debit Note (Purchase Return)
+                </h2>
+                <p className="text-xs text-slate-500">Against bill #{returningPurchase.supplierInvoiceNo || returningPurchase.invoiceNo}</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setReturningPurchase(null)}
+                className="p-2 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-400 hover:text-slate-700 dark:hover:text-white bg-white dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors cursor-pointer shadow-2xs"
+                title="Close modal"
+                aria-label="Close modal"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
 
             <form onSubmit={handleReturnSubmit} className="space-y-4 text-xs">
               <div>
@@ -1862,19 +1884,21 @@ export const PurchaseModule: React.FC<PurchaseModuleProps> = ({
                 Debit Note Total Value: {formatINR(returningPurchase.grandTotal)}
               </div>
 
-              <div className="flex justify-end gap-2.5 pt-3 border-t border-slate-200 dark:border-slate-800">
+              <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-slate-200 dark:border-slate-800">
                 <button
                   type="button"
                   onClick={() => setReturningPurchase(null)}
-                  className="px-4 py-2 rounded-xl border border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-300 font-semibold"
+                  className="px-4 py-2 min-h-[40px] rounded-xl border border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-300 font-semibold text-xs hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer shadow-2xs flex items-center gap-1.5"
                 >
-                  Cancel
+                  <X className="w-4 h-4" />
+                  <span>Cancel</span>
                 </button>
                 <button
                   type="submit"
-                  className="px-5 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-bold"
+                  className="px-5 py-2 min-h-[40px] rounded-xl bg-rose-600 hover:bg-rose-700 active:bg-rose-800 text-white font-bold text-xs shadow-md shadow-rose-600/20 flex items-center gap-1.5 transition-all cursor-pointer"
                 >
-                  Confirm &amp; Issue Debit Note
+                  <CornerDownRight className="w-4 h-4" />
+                  <span>Confirm &amp; Issue Debit Note</span>
                 </button>
               </div>
             </form>
@@ -1888,7 +1912,13 @@ export const PurchaseModule: React.FC<PurchaseModuleProps> = ({
           <div className="w-full max-w-lg bg-white dark:bg-slate-900 rounded-3xl shadow-2xl border border-slate-200 dark:border-slate-800 p-6 my-auto">
             <div className="flex items-center justify-between pb-3 border-b border-slate-200 dark:border-slate-800 mb-4">
               <h2 className="text-base font-bold text-slate-900 dark:text-white">Issue Direct Debit Note (Purchase Return)</h2>
-              <button onClick={() => setShowDirectReturnModal(false)} className="p-1 text-slate-400 hover:text-slate-600 rounded">
+              <button
+                type="button"
+                onClick={() => setShowDirectReturnModal(false)}
+                className="p-2 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-400 hover:text-slate-700 dark:hover:text-white bg-white dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors cursor-pointer shadow-2xs"
+                title="Close modal"
+                aria-label="Close modal"
+              >
                 <X className="w-5 h-5" />
               </button>
             </div>
@@ -1987,19 +2017,21 @@ export const PurchaseModule: React.FC<PurchaseModuleProps> = ({
                 </select>
               </div>
 
-              <div className="flex justify-end gap-2.5 pt-3 border-t border-slate-200 dark:border-slate-800">
+              <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-slate-200 dark:border-slate-800">
                 <button
                   type="button"
                   onClick={() => setShowDirectReturnModal(false)}
-                  className="px-4 py-2 rounded-xl border border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-300 font-semibold"
+                  className="px-4 py-2 min-h-[40px] rounded-xl border border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-300 font-semibold text-xs hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer shadow-2xs flex items-center gap-1.5"
                 >
-                  Cancel
+                  <X className="w-4 h-4" />
+                  <span>Cancel</span>
                 </button>
                 <button
                   type="submit"
-                  className="px-5 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-bold"
+                  className="px-5 py-2 min-h-[40px] rounded-xl bg-rose-600 hover:bg-rose-700 active:bg-rose-800 text-white font-bold text-xs shadow-md shadow-rose-600/20 flex items-center gap-1.5 transition-all cursor-pointer"
                 >
-                  Issue Debit Note
+                  <CornerDownRight className="w-4 h-4" />
+                  <span>Issue Debit Note</span>
                 </button>
               </div>
             </form>
