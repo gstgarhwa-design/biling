@@ -52,8 +52,8 @@ export function generate50FinancialYears(centerYear: number = 2025): FinancialYe
     });
   }
 
-  // Sort descending by default (most recent & future first, followed by historical)
-  return years.reverse();
+  // Sort ascending by default (e.g. 2005-06, 2006-07 ... 2025-26 ... 2054-55)
+  return years;
 }
 
 export const FIFTY_FINANCIAL_YEARS = generate50FinancialYears();

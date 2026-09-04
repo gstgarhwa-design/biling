@@ -45,6 +45,7 @@ export const DateSelectionControl: React.FC<DateSelectionControlProps> = ({
   const [isOpen, setIsOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<DateSelectionMode>(dateSelectionMode);
   const [fySearch, setFySearch] = useState('');
+  const [fySortOrder, setFySortOrder] = useState<'asc' | 'desc'>('asc');
   
   // Local state for Custom Date inputs until "Apply" is clicked
   const [localStartDate, setLocalStartDate] = useState(customStartDate || '2026-04-01');
@@ -75,11 +76,13 @@ export const DateSelectionControl: React.FC<DateSelectionControlProps> = ({
     };
   }, [isOpen]);
 
-  // Filtered Financial Years for FY tab
-  const filteredFys = FIFTY_FINANCIAL_YEARS.filter(item => 
-    item.label.toLowerCase().includes(fySearch.toLowerCase()) ||
-    item.value.includes(fySearch)
-  );
+  // Filtered and Sorted Financial Years for FY tab (Ascending by default: 2005-06 -> 2054-55)
+  const filteredFys = [...FIFTY_FINANCIAL_YEARS]
+    .filter(item => 
+      item.label.toLowerCase().includes(fySearch.toLowerCase()) ||
+      item.value.includes(fySearch)
+    )
+    .sort((a, b) => fySortOrder === 'asc' ? a.startYear - b.startYear : b.startYear - a.startYear);
 
   // Apply custom date range
   const handleApplyCustomDate = () => {
@@ -271,15 +274,49 @@ export const DateSelectionControl: React.FC<DateSelectionControlProps> = ({
             {/* 1. FINANCIAL YEAR TAB */}
             {activeTab === 'FY' && (
               <div className="space-y-3">
-                <div className="relative">
-                  <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-2.5" />
-                  <input
-                    type="text"
-                    placeholder="Search 50 Financial Years (e.g. 2026-27, 2024)..."
-                    value={fySearch}
-                    onChange={(e) => setFySearch(e.target.value)}
-                    className="w-full pl-8 pr-3 py-1.5 text-xs rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white focus:outline-none focus:border-indigo-500"
-                  />
+                <div className="flex items-center gap-2">
+                  <div className="relative flex-1">
+                    <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-2.5" />
+                    <input
+                      type="text"
+                      placeholder="Search Financial Year (e.g. 2025, 2026)..."
+                      value={fySearch}
+                      onChange={(e) => setFySearch(e.target.value)}
+                      className="w-full pl-8 pr-3 py-1.5 text-xs rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white focus:outline-none focus:border-indigo-500"
+                    />
+                  </div>
+
+                  {/* Ascending / Descending Toggle */}
+                  <button
+                    type="button"
+                    onClick={() => setFySortOrder(prev => prev === 'asc' ? 'desc' : 'asc')}
+                    className="px-2.5 py-1.5 rounded-xl border border-indigo-200 dark:border-indigo-800/60 bg-indigo-50/70 dark:bg-indigo-950/50 hover:bg-indigo-100 text-[11px] font-extrabold text-indigo-700 dark:text-indigo-300 flex items-center gap-1 shrink-0 transition-colors shadow-2xs"
+                    title="Toggle Ascending (Oldest to Newest) or Descending"
+                  >
+                    <span>{fySortOrder === 'asc' ? '↑ Ascending' : '↓ Descending'}</span>
+                  </button>
+                </div>
+
+                {/* Sub-bar with Sorting Info and Jump to Current FY */}
+                <div className="flex items-center justify-between text-[11px] px-1 text-slate-500 dark:text-slate-400">
+                  <span className="font-semibold flex items-center gap-1">
+                    <span>Order:</span>
+                    <span className="font-bold text-indigo-600 dark:text-indigo-400">
+                      {fySortOrder === 'asc' ? 'Ascending (2005 → 2055)' : 'Descending (2055 → 2005)'}
+                    </span>
+                  </span>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSelectedFinancialYear('2025-26');
+                      setDateSelectionMode('FY');
+                      setIsOpen(false);
+                    }}
+                    className="text-indigo-600 hover:text-indigo-700 dark:text-indigo-400 font-bold hover:underline"
+                  >
+                    Current FY (2025-26)
+                  </button>
                 </div>
 
                 <div className="max-h-60 overflow-y-auto space-y-1 pr-1 custom-scrollbar">
@@ -311,7 +348,12 @@ export const DateSelectionControl: React.FC<DateSelectionControlProps> = ({
                           )}
                         </div>
 
-                        {isSelected && <Check className="w-3.5 h-3.5 shrink-0" />}
+                        <div className="flex items-center gap-2">
+                          <span className={`text-[10px] font-mono ${isSelected ? 'text-white/80' : 'text-slate-400'}`}>
+                            {fy.startYear} - {fy.endYear}
+                          </span>
+                          {isSelected && <Check className="w-3.5 h-3.5 shrink-0" />}
+                        </div>
                       </button>
                     );
                   })}

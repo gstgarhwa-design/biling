@@ -103,6 +103,8 @@ interface AppContextType {
     message: string;
   };
   quickLogin: (userId: string) => void;
+  switchUser: (userId: string) => boolean;
+  getSwitchableUsersForCurrentUser: () => User[];
   logout: () => void;
   hasPermission: (module: keyof GranularPermissions) => boolean;
   
@@ -847,6 +849,50 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
   };
 
+  const getSwitchableUsersForCurrentUser = (): User[] => {
+    if (!currentUser) return [];
+    // All-access switching across Super Admin, Partner Admin, Admin, and Staff roles
+    return users.filter(u => u.active && u.id !== currentUser.id);
+  };
+
+  const switchUser = (targetUserId: string): boolean => {
+    if (!currentUser) return false;
+
+    // Direct access to switch between Super Admin, Partner Admin, Admin, and Staff
+    const targetUser = users.find(u => u.id === targetUserId && u.active);
+
+    if (!targetUser) {
+      addAuditLog('PERMISSION_CHANGE', 'Security', `Attempted to switch to invalid or inactive user ID: ${targetUserId}`, {
+        userId: currentUser.id,
+        userMobile: currentUser.mobile,
+        userName: currentUser.name,
+        userRole: currentUser.role,
+        status: 'FAILED',
+      });
+      return false;
+    }
+
+    // Determine target company for target user context
+    const targetUserAuthorized = getAuthorizedCompaniesForUser(targetUser);
+    const canKeepActiveCompany = targetUser.role === 'SUPER_ADMIN' || targetUserAuthorized.some(c => c.id === effectiveCompanyId);
+    const targetCompanyId = canKeepActiveCompany ? effectiveCompanyId : (targetUserAuthorized[0]?.id || targetUser.companyId || 'comp-1');
+
+    addAuditLog('LOGIN', 'Security', `Switched active user from ${currentUser.name} (${currentUser.role}) to ${targetUser.name} (${targetUser.role}) [Workspace: ${activeCompany?.name}]`, {
+      userId: targetUser.id,
+      userMobile: targetUser.mobile,
+      userName: targetUser.name,
+      userRole: targetUser.role,
+      companyId: targetCompanyId,
+      companyName: activeCompany?.name,
+      oldValue: `${currentUser.name} (${currentUser.role})`,
+      newValue: `${targetUser.name} (${targetUser.role})`,
+      status: 'SUCCESS',
+    });
+
+    selectActiveCompanyAndLogin(targetUser, targetCompanyId);
+    return true;
+  };
+
   const logout = () => {
     if (currentUser) {
       addAuditLog('LOGOUT', 'Security', `User ${currentUser.name} (${currentUser.role}) logged out of session`, {
@@ -871,6 +917,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     // Super Admin has unrestricted access to all entities
     if (currentUser.role === 'SUPER_ADMIN') {
       setActiveCompanyId(companyId);
+      const session = loadStorage<AuthSession | null>('gst_erp_session_v2', null);
+      if (session) {
+        saveStorage('gst_erp_session_v2', { ...session, companyId });
+      }
+      saveStorage(STORAGE_KEYS.ACTIVE_COMPANY_ID, companyId);
       const comp = companies.find(c => c.id === companyId);
       addAuditLog('COMPANY_SWITCH', 'Company Switcher', `Super Admin switched active company to: ${comp?.name}`, {
         companyId,
@@ -886,6 +937,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     const isAuthorized = authorized.some(c => c.id === companyId);
     if (isAuthorized) {
       setActiveCompanyId(companyId);
+      const session = loadStorage<AuthSession | null>('gst_erp_session_v2', null);
+      if (session) {
+        saveStorage('gst_erp_session_v2', { ...session, companyId });
+      }
+      saveStorage(STORAGE_KEYS.ACTIVE_COMPANY_ID, companyId);
       const comp = companies.find(c => c.id === companyId);
       addAuditLog('COMPANY_SWITCH', 'Company Switcher', `${currentUser.role} ${currentUser.name} switched active company to: ${comp?.name}`, {
         companyId,
@@ -1854,6 +1910,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         verifyOtp,
         selectActiveCompanyAndLogin,
         quickLogin,
+        switchUser,
+        getSwitchableUsersForCurrentUser,
         logout,
         hasPermission,
         switchCompany,
