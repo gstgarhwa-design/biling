@@ -23,12 +23,30 @@ export function downloadJsonFile(data: any, filename: string) {
  */
 export function generateGstr1GovtJson(
   company: Company | null,
-  returnPeriod: string,
-  salesInvoices: SalesInvoice[],
-  creditNotes: CreditNote[]
+  returnPeriod: string | SalesInvoice[],
+  salesInvoices: SalesInvoice[] | CreditNote[],
+  creditNotes?: CreditNote[] | string
 ): string {
+  let fp = '022025';
+  let sales: SalesInvoice[] = [];
+  let credits: CreditNote[] = [];
+
+  if (typeof returnPeriod === 'string') {
+    fp = returnPeriod || '022025';
+    sales = Array.isArray(salesInvoices) ? (salesInvoices as SalesInvoice[]) : [];
+    credits = Array.isArray(creditNotes) ? (creditNotes as CreditNote[]) : [];
+  } else if (Array.isArray(returnPeriod)) {
+    sales = returnPeriod;
+    credits = Array.isArray(salesInvoices) ? (salesInvoices as CreditNote[]) : [];
+    fp = typeof creditNotes === 'string' ? creditNotes : '022025';
+  } else {
+    sales = Array.isArray(salesInvoices) ? (salesInvoices as SalesInvoice[]) : [];
+    credits = Array.isArray(creditNotes) ? (creditNotes as CreditNote[]) : [];
+  }
+
   const gstin = company?.gstin || '27AABCA1234A1Z5';
-  const fp = returnPeriod || '022025';
+  salesInvoices = sales;
+  creditNotes = credits;
 
   // 1. B2B Invoices (Registered Customers)
   const b2bMap: Record<string, any[]> = {};
@@ -232,10 +250,30 @@ export function generateGstr1GovtJson(
  */
 export function exportGstr1GovtExcel(
   company: Company | null,
-  returnPeriod: string,
-  salesInvoices: SalesInvoice[],
-  creditNotes: CreditNote[]
+  returnPeriod: string | SalesInvoice[],
+  salesInvoices: SalesInvoice[] | CreditNote[],
+  creditNotes?: CreditNote[] | string
 ) {
+  let fp = '022025';
+  let sales: SalesInvoice[] = [];
+  let credits: CreditNote[] = [];
+
+  if (typeof returnPeriod === 'string') {
+    fp = returnPeriod || '022025';
+    sales = Array.isArray(salesInvoices) ? (salesInvoices as SalesInvoice[]) : [];
+    credits = Array.isArray(creditNotes) ? (creditNotes as CreditNote[]) : [];
+  } else if (Array.isArray(returnPeriod)) {
+    sales = returnPeriod;
+    credits = Array.isArray(salesInvoices) ? (salesInvoices as CreditNote[]) : [];
+    fp = typeof creditNotes === 'string' ? creditNotes : '022025';
+  } else {
+    sales = Array.isArray(salesInvoices) ? (salesInvoices as SalesInvoice[]) : [];
+    credits = Array.isArray(creditNotes) ? (creditNotes as CreditNote[]) : [];
+  }
+  salesInvoices = sales;
+  creditNotes = credits;
+  returnPeriod = fp;
+
   const wb = XLSX.utils.book_new();
 
   // 1. Sheet: B2B
@@ -367,14 +405,45 @@ export function exportGstr1GovtExcel(
  */
 export function generateGstr3bGovtJson(
   company: Company | null,
-  returnPeriod: string,
-  salesInvoices: SalesInvoice[],
-  purchaseInvoices: PurchaseInvoice[],
-  creditNotes: CreditNote[],
-  debitNotes: DebitNote[]
+  returnPeriod: string | SalesInvoice[],
+  salesInvoices: SalesInvoice[] | PurchaseInvoice[],
+  purchaseInvoices?: PurchaseInvoice[] | CreditNote[],
+  creditNotes?: CreditNote[] | DebitNote[],
+  debitNotes?: DebitNote[] | string,
+  extraPeriod?: string
 ): string {
+  let fp = '022025';
+  let sales: SalesInvoice[] = [];
+  let purchases: PurchaseInvoice[] = [];
+  let credits: CreditNote[] = [];
+  let debits: DebitNote[] = [];
+
+  if (typeof returnPeriod === 'string') {
+    fp = returnPeriod || '022025';
+    sales = Array.isArray(salesInvoices) ? (salesInvoices as SalesInvoice[]) : [];
+    purchases = Array.isArray(purchaseInvoices) ? (purchaseInvoices as PurchaseInvoice[]) : [];
+    credits = Array.isArray(creditNotes) ? (creditNotes as CreditNote[]) : [];
+    debits = Array.isArray(debitNotes) ? (debitNotes as DebitNote[]) : [];
+  } else if (Array.isArray(returnPeriod)) {
+    sales = returnPeriod;
+    purchases = Array.isArray(salesInvoices) ? (salesInvoices as any) : [];
+    credits = Array.isArray(purchaseInvoices) ? (purchaseInvoices as any) : [];
+    debits = Array.isArray(creditNotes) ? (creditNotes as any) : [];
+    fp = typeof debitNotes === 'string' ? debitNotes : (extraPeriod || '022025');
+  } else {
+    sales = Array.isArray(salesInvoices) ? (salesInvoices as SalesInvoice[]) : [];
+    purchases = Array.isArray(purchaseInvoices) ? (purchaseInvoices as PurchaseInvoice[]) : [];
+    credits = Array.isArray(creditNotes) ? (creditNotes as CreditNote[]) : [];
+    debits = Array.isArray(debitNotes) ? (debitNotes as DebitNote[]) : [];
+  }
+
+  salesInvoices = sales;
+  purchaseInvoices = purchases;
+  creditNotes = credits;
+  debitNotes = debits;
+
   const gstin = company?.gstin || '27AABCA1234A1Z5';
-  const ret_period = returnPeriod || '022025';
+  const ret_period = fp;
 
   // Table 3.1: Outward Supplies
   const postedSales = salesInvoices.filter(i => i.status === 'POSTED');
@@ -462,12 +531,44 @@ export function generateGstr3bGovtJson(
  */
 export function exportGstr3bGovtExcel(
   company: Company | null,
-  returnPeriod: string,
-  salesInvoices: SalesInvoice[],
-  purchaseInvoices: PurchaseInvoice[],
-  creditNotes: CreditNote[],
-  debitNotes: DebitNote[]
+  returnPeriod: string | SalesInvoice[],
+  salesInvoices: SalesInvoice[] | PurchaseInvoice[],
+  purchaseInvoices?: PurchaseInvoice[] | CreditNote[],
+  creditNotes?: CreditNote[] | DebitNote[],
+  debitNotes?: DebitNote[] | string,
+  extraPeriod?: string
 ) {
+  let fp = '022025';
+  let sales: SalesInvoice[] = [];
+  let purchases: PurchaseInvoice[] = [];
+  let credits: CreditNote[] = [];
+  let debits: DebitNote[] = [];
+
+  if (typeof returnPeriod === 'string') {
+    fp = returnPeriod || '022025';
+    sales = Array.isArray(salesInvoices) ? (salesInvoices as SalesInvoice[]) : [];
+    purchases = Array.isArray(purchaseInvoices) ? (purchaseInvoices as PurchaseInvoice[]) : [];
+    credits = Array.isArray(creditNotes) ? (creditNotes as CreditNote[]) : [];
+    debits = Array.isArray(debitNotes) ? (debitNotes as DebitNote[]) : [];
+  } else if (Array.isArray(returnPeriod)) {
+    sales = returnPeriod;
+    purchases = Array.isArray(salesInvoices) ? (salesInvoices as any) : [];
+    credits = Array.isArray(purchaseInvoices) ? (purchaseInvoices as any) : [];
+    debits = Array.isArray(creditNotes) ? (creditNotes as any) : [];
+    fp = typeof debitNotes === 'string' ? debitNotes : (extraPeriod || '022025');
+  } else {
+    sales = Array.isArray(salesInvoices) ? (salesInvoices as SalesInvoice[]) : [];
+    purchases = Array.isArray(purchaseInvoices) ? (purchaseInvoices as PurchaseInvoice[]) : [];
+    credits = Array.isArray(creditNotes) ? (creditNotes as CreditNote[]) : [];
+    debits = Array.isArray(debitNotes) ? (debitNotes as DebitNote[]) : [];
+  }
+
+  salesInvoices = sales;
+  purchaseInvoices = purchases;
+  creditNotes = credits;
+  debitNotes = debits;
+  returnPeriod = fp;
+
   const wb = XLSX.utils.book_new();
 
   const postedSales = salesInvoices.filter(i => i.status === 'POSTED');
@@ -620,10 +721,31 @@ export function exportGstr3bGovtExcel(
  */
 export function exportGstr2bGovtExcel(
   company: Company | null,
-  returnPeriod: string,
-  purchaseInvoices: PurchaseInvoice[],
-  debitNotes: DebitNote[]
+  returnPeriod: string | PurchaseInvoice[],
+  purchaseInvoices: PurchaseInvoice[] | DebitNote[],
+  debitNotes?: DebitNote[] | string,
+  extraPeriod?: string
 ) {
+  let fp = '022025';
+  let purchases: PurchaseInvoice[] = [];
+  let debits: DebitNote[] = [];
+
+  if (typeof returnPeriod === 'string') {
+    fp = returnPeriod || '022025';
+    purchases = Array.isArray(purchaseInvoices) ? (purchaseInvoices as PurchaseInvoice[]) : [];
+    debits = Array.isArray(debitNotes) ? (debitNotes as DebitNote[]) : [];
+  } else if (Array.isArray(returnPeriod)) {
+    purchases = returnPeriod;
+    debits = Array.isArray(purchaseInvoices) ? (purchaseInvoices as any) : [];
+    fp = typeof debitNotes === 'string' ? debitNotes : (extraPeriod || '022025');
+  } else {
+    purchases = Array.isArray(purchaseInvoices) ? (purchaseInvoices as PurchaseInvoice[]) : [];
+    debits = Array.isArray(debitNotes) ? (debitNotes as DebitNote[]) : [];
+  }
+  purchaseInvoices = purchases;
+  debitNotes = debits;
+  returnPeriod = fp;
+
   const wb = XLSX.utils.book_new();
 
   // 1. ITC Summary Table
@@ -677,12 +799,28 @@ export function exportGstr2bGovtExcel(
  */
 export function exportGstr1GovtJson(
   company: Company | null,
-  returnPeriod: string,
-  salesInvoices: SalesInvoice[],
-  creditNotes: CreditNote[]
+  returnPeriod: string | SalesInvoice[],
+  salesInvoices: SalesInvoice[] | CreditNote[],
+  creditNotes?: CreditNote[] | string
 ) {
-  const jsonString = generateGstr1GovtJson(company, returnPeriod, salesInvoices, creditNotes);
-  const filename = `GSTR1_${company?.gstin || 'GST'}_${returnPeriod || 'period'}.json`;
+  let fp = '022025';
+  let sales: SalesInvoice[] = [];
+  let credits: CreditNote[] = [];
+
+  if (typeof returnPeriod === 'string') {
+    fp = returnPeriod || '022025';
+    sales = Array.isArray(salesInvoices) ? (salesInvoices as SalesInvoice[]) : [];
+    credits = Array.isArray(creditNotes) ? (creditNotes as CreditNote[]) : [];
+  } else if (Array.isArray(returnPeriod)) {
+    sales = returnPeriod;
+    credits = Array.isArray(salesInvoices) ? (salesInvoices as CreditNote[]) : [];
+    fp = typeof creditNotes === 'string' ? creditNotes : '022025';
+  } else {
+    sales = Array.isArray(salesInvoices) ? (salesInvoices as SalesInvoice[]) : [];
+    credits = Array.isArray(creditNotes) ? (creditNotes as CreditNote[]) : [];
+  }
+  const jsonString = generateGstr1GovtJson(company, fp, sales, credits);
+  const filename = `GSTR1_${company?.gstin || 'GST'}_${fp || 'period'}.json`;
   downloadJsonFile(jsonString, filename);
 }
 
@@ -691,14 +829,39 @@ export function exportGstr1GovtJson(
  */
 export function exportGstr3bGovtJson(
   company: Company | null,
-  returnPeriod: string,
-  salesInvoices: SalesInvoice[],
-  purchaseInvoices: PurchaseInvoice[],
-  creditNotes: CreditNote[],
-  debitNotes: DebitNote[]
+  returnPeriod: string | SalesInvoice[],
+  salesInvoices: SalesInvoice[] | PurchaseInvoice[],
+  purchaseInvoices?: PurchaseInvoice[] | CreditNote[],
+  creditNotes?: CreditNote[] | DebitNote[],
+  debitNotes?: DebitNote[] | string,
+  extraPeriod?: string
 ) {
-  const jsonString = generateGstr3bGovtJson(company, returnPeriod, salesInvoices, purchaseInvoices, creditNotes, debitNotes);
-  const filename = `GSTR3B_${company?.gstin || 'GST'}_${returnPeriod || 'period'}.json`;
+  let fp = '022025';
+  let sales: SalesInvoice[] = [];
+  let purchases: PurchaseInvoice[] = [];
+  let credits: CreditNote[] = [];
+  let debits: DebitNote[] = [];
+
+  if (typeof returnPeriod === 'string') {
+    fp = returnPeriod || '022025';
+    sales = Array.isArray(salesInvoices) ? (salesInvoices as SalesInvoice[]) : [];
+    purchases = Array.isArray(purchaseInvoices) ? (purchaseInvoices as PurchaseInvoice[]) : [];
+    credits = Array.isArray(creditNotes) ? (creditNotes as CreditNote[]) : [];
+    debits = Array.isArray(debitNotes) ? (debitNotes as DebitNote[]) : [];
+  } else if (Array.isArray(returnPeriod)) {
+    sales = returnPeriod;
+    purchases = Array.isArray(salesInvoices) ? (salesInvoices as any) : [];
+    credits = Array.isArray(purchaseInvoices) ? (purchaseInvoices as any) : [];
+    debits = Array.isArray(creditNotes) ? (creditNotes as any) : [];
+    fp = typeof debitNotes === 'string' ? debitNotes : (extraPeriod || '022025');
+  } else {
+    sales = Array.isArray(salesInvoices) ? (salesInvoices as SalesInvoice[]) : [];
+    purchases = Array.isArray(purchaseInvoices) ? (purchaseInvoices as PurchaseInvoice[]) : [];
+    credits = Array.isArray(creditNotes) ? (creditNotes as CreditNote[]) : [];
+    debits = Array.isArray(debitNotes) ? (debitNotes as DebitNote[]) : [];
+  }
+  const jsonString = generateGstr3bGovtJson(company, fp, sales, purchases, credits, debits);
+  const filename = `GSTR3B_${company?.gstin || 'GST'}_${fp || 'period'}.json`;
   downloadJsonFile(jsonString, filename);
 }
 
@@ -716,6 +879,13 @@ export function exportComprehensiveBusinessJson(
   parties: Party[],
   paymentsReceipts: PaymentReceipt[] = []
 ) {
+  salesInvoices = Array.isArray(salesInvoices) ? salesInvoices : [];
+  purchaseInvoices = Array.isArray(purchaseInvoices) ? purchaseInvoices : [];
+  creditNotes = Array.isArray(creditNotes) ? creditNotes : [];
+  debitNotes = Array.isArray(debitNotes) ? debitNotes : [];
+  parties = Array.isArray(parties) ? parties : [];
+  paymentsReceipts = Array.isArray(paymentsReceipts) ? paymentsReceipts : [];
+
   // Aggregate KPIs
   const totalSalesTaxable = salesInvoices.reduce((s, i) => s + i.taxableAmount, 0);
   const totalSalesGrand = salesInvoices.reduce((s, i) => s + i.grandTotal, 0);
@@ -868,6 +1038,13 @@ export function exportComprehensiveBusinessExcel(
   parties: Party[],
   paymentsReceipts: PaymentReceipt[] = []
 ) {
+  salesInvoices = Array.isArray(salesInvoices) ? salesInvoices : [];
+  purchaseInvoices = Array.isArray(purchaseInvoices) ? purchaseInvoices : [];
+  creditNotes = Array.isArray(creditNotes) ? creditNotes : [];
+  debitNotes = Array.isArray(debitNotes) ? debitNotes : [];
+  parties = Array.isArray(parties) ? parties : [];
+  paymentsReceipts = Array.isArray(paymentsReceipts) ? paymentsReceipts : [];
+
   const wb = XLSX.utils.book_new();
 
   // 1. Executive Summary Sheet

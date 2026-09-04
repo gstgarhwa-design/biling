@@ -114,8 +114,14 @@ export const PartyWiseReportModule: React.FC = () => {
 
     const rawEntries: { date: string; voucherType: LedgerEntry['voucherType']; voucherNo: string; particulars: string; debit: number; credit: number }[] = [];
 
+    const safeSales = Array.isArray(salesInvoices) ? salesInvoices : [];
+    const safePurchases = Array.isArray(purchaseInvoices) ? purchaseInvoices : [];
+    const safeCredits = Array.isArray(creditNotes) ? creditNotes : [];
+    const safeDebits = Array.isArray(debitNotes) ? debitNotes : [];
+    const safePayments = Array.isArray(paymentsReceipts) ? paymentsReceipts : [];
+
     // 1. Sales Invoices (Debit to Customer)
-    salesInvoices
+    safeSales
       .filter(inv => inv.customerId === selectedParty.id)
       .forEach(inv => {
         rawEntries.push({
@@ -129,7 +135,7 @@ export const PartyWiseReportModule: React.FC = () => {
       });
 
     // 2. Purchase Bills (Credit to Supplier)
-    purchaseInvoices
+    safePurchases
       .filter(pur => pur.supplierId === selectedParty.id)
       .forEach(pur => {
         rawEntries.push({
@@ -143,7 +149,7 @@ export const PartyWiseReportModule: React.FC = () => {
       });
 
     // 3. Credit Notes (Credit to Customer, reduces receivable)
-    creditNotes
+    safeCredits
       .filter(cn => cn.customerId === selectedParty.id)
       .forEach(cn => {
         rawEntries.push({
@@ -157,7 +163,7 @@ export const PartyWiseReportModule: React.FC = () => {
       });
 
     // 4. Debit Notes / Purchase Returns (Debit to Supplier, reduces payable)
-    debitNotes
+    safeDebits
       .filter(dn => dn.supplierId === selectedParty.id)
       .forEach(dn => {
         rawEntries.push({
@@ -171,7 +177,7 @@ export const PartyWiseReportModule: React.FC = () => {
       });
 
     // 5. Payments & Receipts
-    paymentsReceipts
+    safePayments
       .filter(pay => pay.partyId === selectedParty.id)
       .forEach(pay => {
         if (pay.type === 'RECEIPT') {

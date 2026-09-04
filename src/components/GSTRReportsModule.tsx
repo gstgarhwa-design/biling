@@ -47,11 +47,11 @@ export const GSTRReportsModule: React.FC = () => {
   const selectedMonthLabel = FISCAL_MONTHS.find(m => m.key === selectedMonth)?.label || 'All Months';
 
   // 1. & 2. FILTERED BY ACTIVE FINANCIAL YEAR + MONTH
-  const periodSalesInvoices = salesInvoices.filter(i => isDateInFiscalPeriod(i.date, selectedFinancialYear, selectedMonth));
-  const periodPurchaseInvoices = purchaseInvoices.filter(i => isDateInFiscalPeriod(i.date, selectedFinancialYear, selectedMonth));
-  const periodCreditNotes = creditNotes.filter(i => isDateInFiscalPeriod(i.date, selectedFinancialYear, selectedMonth));
-  const periodDebitNotes = debitNotes.filter(i => isDateInFiscalPeriod(i.date, selectedFinancialYear, selectedMonth));
-  const periodPaymentsReceipts = paymentsReceipts.filter(pr => isDateInFiscalPeriod(pr.date, selectedFinancialYear, selectedMonth));
+  const periodSalesInvoices = (salesInvoices || []).filter(i => isDateInFiscalPeriod(i.date, selectedFinancialYear, selectedMonth));
+  const periodPurchaseInvoices = (purchaseInvoices || []).filter(i => isDateInFiscalPeriod(i.date, selectedFinancialYear, selectedMonth));
+  const periodCreditNotes = (creditNotes || []).filter(i => isDateInFiscalPeriod(i.date, selectedFinancialYear, selectedMonth));
+  const periodDebitNotes = (debitNotes || []).filter(i => isDateInFiscalPeriod(i.date, selectedFinancialYear, selectedMonth));
+  const periodPaymentsReceipts = (paymentsReceipts || []).filter(pr => isDateInFiscalPeriod(pr.date, selectedFinancialYear, selectedMonth));
 
   // GSTR-1 Breakup:
   // 1. Table 4: B2B Invoices
@@ -112,23 +112,23 @@ export const GSTRReportsModule: React.FC = () => {
 
   // Government GST Return Export Handlers (Real DB Data for selected FY/Month)
   const handleExportGstr1Json = () => {
-    exportGstr1GovtJson(activeCompany, periodSalesInvoices, periodCreditNotes, returnPeriod);
+    exportGstr1GovtJson(activeCompany, returnPeriod, periodSalesInvoices, periodCreditNotes);
   };
 
   const handleExportGstr1Excel = () => {
-    exportGstr1GovtExcel(activeCompany, periodSalesInvoices, periodCreditNotes, returnPeriod);
+    exportGstr1GovtExcel(activeCompany, returnPeriod, periodSalesInvoices, periodCreditNotes);
   };
 
   const handleExportGstr3bJson = () => {
-    exportGstr3bGovtJson(activeCompany, periodSalesInvoices, periodPurchaseInvoices, periodCreditNotes, periodDebitNotes, returnPeriod);
+    exportGstr3bGovtJson(activeCompany, returnPeriod, periodSalesInvoices, periodPurchaseInvoices, periodCreditNotes, periodDebitNotes);
   };
 
   const handleExportGstr3bExcel = () => {
-    exportGstr3bGovtExcel(activeCompany, periodSalesInvoices, periodPurchaseInvoices, periodCreditNotes, periodDebitNotes, returnPeriod);
+    exportGstr3bGovtExcel(activeCompany, returnPeriod, periodSalesInvoices, periodPurchaseInvoices, periodCreditNotes, periodDebitNotes);
   };
 
   const handleExportGstr2bExcel = () => {
-    exportGstr2bGovtExcel(activeCompany, periodPurchaseInvoices, periodDebitNotes, returnPeriod);
+    exportGstr2bGovtExcel(activeCompany, returnPeriod, periodPurchaseInvoices, periodDebitNotes);
   };
 
   const handleExportBusinessJson = () => {

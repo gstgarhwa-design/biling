@@ -167,7 +167,12 @@ function loadStorage<T>(key: string, defaultVal: T): T {
     const saved = localStorage.getItem(key);
     if (saved) {
       const parsed = JSON.parse(saved);
-      if (parsed !== null && parsed !== undefined) return parsed;
+      if (parsed !== null && parsed !== undefined) {
+        if (Array.isArray(defaultVal) && !Array.isArray(parsed)) {
+          return defaultVal;
+        }
+        return parsed;
+      }
     }
   } catch (e) {
     console.error('Failed to load storage for key:', key, e);
@@ -1012,18 +1017,18 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   // If Admin or Staff, they ONLY see their company's records!
   const targetCompanyId = activeCompany?.id || 'comp-1';
 
-  const tenantParties = parties.filter(p => p.companyId === targetCompanyId);
-  const tenantItems = items.filter(i => i.companyId === targetCompanyId);
-  const tenantSalesInvoices = salesInvoices.filter(i => i.companyId === targetCompanyId);
-  const tenantPurchaseInvoices = purchaseInvoices.filter(i => i.companyId === targetCompanyId);
-  const tenantCreditNotes = creditNotes.filter(i => i.companyId === targetCompanyId);
-  const tenantDebitNotes = debitNotes.filter(i => i.companyId === targetCompanyId);
-  const tenantPaymentsReceipts = paymentsReceipts.filter(i => i.companyId === targetCompanyId);
-  const tenantJournalEntries = journalEntries.filter(i => i.companyId === targetCompanyId);
-  const tenantStockMovements = stockMovements.filter(i => i.companyId === targetCompanyId);
+  const tenantParties = Array.isArray(parties) ? parties.filter(p => p.companyId === targetCompanyId) : [];
+  const tenantItems = Array.isArray(items) ? items.filter(i => i.companyId === targetCompanyId) : [];
+  const tenantSalesInvoices = Array.isArray(salesInvoices) ? salesInvoices.filter(i => i.companyId === targetCompanyId) : [];
+  const tenantPurchaseInvoices = Array.isArray(purchaseInvoices) ? purchaseInvoices.filter(i => i.companyId === targetCompanyId) : [];
+  const tenantCreditNotes = Array.isArray(creditNotes) ? creditNotes.filter(i => i.companyId === targetCompanyId) : [];
+  const tenantDebitNotes = Array.isArray(debitNotes) ? debitNotes.filter(i => i.companyId === targetCompanyId) : [];
+  const tenantPaymentsReceipts = Array.isArray(paymentsReceipts) ? paymentsReceipts.filter(i => i.companyId === targetCompanyId) : [];
+  const tenantJournalEntries = Array.isArray(journalEntries) ? journalEntries.filter(i => i.companyId === targetCompanyId) : [];
+  const tenantStockMovements = Array.isArray(stockMovements) ? stockMovements.filter(i => i.companyId === targetCompanyId) : [];
   const tenantAuditLogs = currentUser?.role === 'SUPER_ADMIN'
-    ? auditLogs
-    : auditLogs.filter(l => l.companyId === targetCompanyId);
+    ? (Array.isArray(auditLogs) ? auditLogs : [])
+    : (Array.isArray(auditLogs) ? auditLogs.filter(l => l.companyId === targetCompanyId) : []);
 
   const exportGSTR1JSON = (): string => {
     const b2b = tenantSalesInvoices

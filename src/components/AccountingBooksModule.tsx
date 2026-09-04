@@ -50,8 +50,15 @@ export const AccountingBooksModule: React.FC = () => {
     creditAmount: number;
   };
 
+  const safeSales = Array.isArray(salesInvoices) ? salesInvoices : [];
+  const safePurchases = Array.isArray(purchaseInvoices) ? purchaseInvoices : [];
+  const safeCredits = Array.isArray(creditNotes) ? creditNotes : [];
+  const safeDebits = Array.isArray(debitNotes) ? debitNotes : [];
+  const safeJournals = Array.isArray(journalVouchers) ? journalVouchers : [];
+  const safeParties = Array.isArray(parties) ? parties : [];
+
   const dayBookEntries: DayBookEntry[] = [
-    ...salesInvoices.map(s => ({
+    ...safeSales.map(s => ({
       id: s.id,
       date: s.date,
       type: 'SALES' as const,
@@ -60,7 +67,7 @@ export const AccountingBooksModule: React.FC = () => {
       debitAmount: s.grandTotal, // Debtor Dr
       creditAmount: 0,
     })),
-    ...purchaseInvoices.map(p => ({
+    ...safePurchases.map(p => ({
       id: p.id,
       date: p.date,
       type: 'PURCHASE' as const,
@@ -69,7 +76,7 @@ export const AccountingBooksModule: React.FC = () => {
       debitAmount: 0,
       creditAmount: p.grandTotal || 0, // Creditor Cr
     })),
-    ...creditNotes.map(c => ({
+    ...safeCredits.map(c => ({
       id: c.id,
       date: c.date,
       type: 'CREDIT_NOTE' as const,
@@ -78,7 +85,7 @@ export const AccountingBooksModule: React.FC = () => {
       debitAmount: 0,
       creditAmount: c.totalAmount || 0,
     })),
-    ...debitNotes.map(d => ({
+    ...safeDebits.map(d => ({
       id: d.id,
       date: d.date,
       type: 'DEBIT_NOTE' as const,
@@ -87,7 +94,7 @@ export const AccountingBooksModule: React.FC = () => {
       debitAmount: d.totalAmount || 0,
       creditAmount: 0,
     })),
-    ...journalVouchers.map(j => {
+    ...safeJournals.map(j => {
       const entry0 = (j as any).entries?.[0] || j.lines?.[0];
       const entry1 = (j as any).entries?.[1] || j.lines?.[1];
       const name0 = entry0?.accountName || 'Journal Adjustment';
@@ -105,16 +112,16 @@ export const AccountingBooksModule: React.FC = () => {
   ].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 
   // Trial Balance calculation
-  const totalSalesRevenue = salesInvoices.reduce((s, i) => s + i.taxableAmount, 0);
-  const totalPurchaseCost = purchaseInvoices.reduce((s, i) => s + i.taxableAmount, 0);
-  const totalGstInputCredit = purchaseInvoices.reduce((s, i) => s + (i.cgst + i.sgst + i.igst), 0);
-  const totalGstOutputLiability = salesInvoices.reduce((s, i) => s + (i.cgst + i.sgst + i.igst), 0);
+  const totalSalesRevenue = safeSales.reduce((s, i) => s + i.taxableAmount, 0);
+  const totalPurchaseCost = safePurchases.reduce((s, i) => s + i.taxableAmount, 0);
+  const totalGstInputCredit = safePurchases.reduce((s, i) => s + (i.cgst + i.sgst + i.igst), 0);
+  const totalGstOutputLiability = safeSales.reduce((s, i) => s + (i.cgst + i.sgst + i.igst), 0);
 
-  const debtorsTotal = parties
+  const debtorsTotal = safeParties
     .filter(p => p.currentBalance > 0)
     .reduce((s, p) => s + p.currentBalance, 0);
 
-  const creditorsTotal = parties
+  const creditorsTotal = safeParties
     .filter(p => p.currentBalance < 0)
     .reduce((s, p) => s + Math.abs(p.currentBalance), 0);
 
