@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useMemo, useCallback } from 'react';
 import {
   User,
   Company,
@@ -20,6 +20,11 @@ import {
   AuthSession,
 } from '../types';
 import { normalizeMobile } from '../lib/supabase';
+import {
+  DateSelectionMode,
+  isDateInSelectedPeriod,
+  getPeriodDisplayLabel
+} from '../utils/financialYears';
 import {
   INITIAL_COMPANIES,
   INITIAL_USERS,
@@ -142,11 +147,28 @@ interface AppContextType {
   addAuditLog: (action: AuditLog['action'], module: string, details: string) => void;
   exportGSTR1JSON: () => string;
 
-  // 50 Financial Year & Fiscal Month Filter State
+  // Unified Date Selection State
+  dateSelectionMode: DateSelectionMode;
+  setDateSelectionMode: (mode: DateSelectionMode) => void;
   selectedFinancialYear: string;
   setSelectedFinancialYear: (fy: string) => void;
   selectedMonth: string;
   setSelectedMonth: (month: string) => void;
+  customStartDate: string;
+  setCustomStartDate: (date: string) => void;
+  customEndDate: string;
+  setCustomEndDate: (date: string) => void;
+  selectedPeriodLabel: string;
+  isDateInSelectedPeriod: (dateStr: string) => boolean;
+
+  // Complete CRUD Delete operations
+  deleteSalesInvoice: (invoiceId: string) => boolean;
+  deletePurchaseInvoice: (invoiceId: string) => boolean;
+  deleteParty: (partyId: string) => boolean;
+  deleteItem: (itemId: string) => boolean;
+  deleteCreditNote: (id: string) => boolean;
+  deleteDebitNote: (id: string) => boolean;
+  deletePaymentReceipt: (id: string) => boolean;
 
   // Supabase Database Connection State
   isSupabaseModalOpen: boolean;
@@ -174,6 +196,9 @@ const STORAGE_KEYS = {
   ACTIVE_COMPANY_ID: 'gst_erp_active_company_id_v1',
   SELECTED_FY: 'gst_erp_selected_fy_v1',
   SELECTED_MONTH: 'gst_erp_selected_month_v1',
+  SELECTED_MODE: 'gst_erp_date_mode_v1',
+  CUSTOM_START_DATE: 'gst_erp_custom_start_date_v1',
+  CUSTOM_END_DATE: 'gst_erp_custom_end_date_v1',
   ADMIN_COMPANY_PERMISSIONS: 'gst_erp_admin_company_perms_v1',
 };
 
@@ -294,6 +319,15 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [selectedMonth, setSelectedMonth] = useState<string>(() => {
     return loadStorage<string>(STORAGE_KEYS.SELECTED_MONTH, 'ALL');
   });
+  const [dateSelectionMode, setDateSelectionMode] = useState<DateSelectionMode>(() => {
+    return loadStorage<DateSelectionMode>(STORAGE_KEYS.SELECTED_MODE, 'FY');
+  });
+  const [customStartDate, setCustomStartDate] = useState<string>(() => {
+    return loadStorage<string>(STORAGE_KEYS.CUSTOM_START_DATE, '2026-04-01');
+  });
+  const [customEndDate, setCustomEndDate] = useState<string>(() => {
+    return loadStorage<string>(STORAGE_KEYS.CUSTOM_END_DATE, '2026-06-30');
+  });
 
   const currentUser = users.find(u => u.id === currentUserId) || null;
 
@@ -371,6 +405,30 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   useEffect(() => { saveStorage(STORAGE_KEYS.ACTIVE_COMPANY_ID, activeCompanyId); }, [activeCompanyId]);
   useEffect(() => { saveStorage(STORAGE_KEYS.SELECTED_FY, selectedFinancialYear); }, [selectedFinancialYear]);
   useEffect(() => { saveStorage(STORAGE_KEYS.SELECTED_MONTH, selectedMonth); }, [selectedMonth]);
+  useEffect(() => { saveStorage(STORAGE_KEYS.SELECTED_MODE, dateSelectionMode); }, [dateSelectionMode]);
+  useEffect(() => { saveStorage(STORAGE_KEYS.CUSTOM_START_DATE, customStartDate); }, [customStartDate]);
+  useEffect(() => { saveStorage(STORAGE_KEYS.CUSTOM_END_DATE, customEndDate); }, [customEndDate]);
+
+  const selectedPeriodLabel = useMemo(() => {
+    return getPeriodDisplayLabel(
+      dateSelectionMode,
+      selectedFinancialYear,
+      selectedMonth,
+      customStartDate,
+      customEndDate
+    );
+  }, [dateSelectionMode, selectedFinancialYear, selectedMonth, customStartDate, customEndDate]);
+
+  const isDateInActivePeriod = useCallback((dateStr: string) => {
+    return isDateInSelectedPeriod(
+      dateStr,
+      dateSelectionMode,
+      selectedFinancialYear,
+      selectedMonth,
+      customStartDate,
+      customEndDate
+    );
+  }, [dateSelectionMode, selectedFinancialYear, selectedMonth, customStartDate, customEndDate]);
 
   const addAuditLog = (action: AuditLog['action'], module: string, details: string) => {
     const newLog: AuditLog = {
@@ -1012,6 +1070,70 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     return true;
   };
 
+  const deleteSalesInvoice = (invoiceId: string): boolean => {
+    const existing = salesInvoices.find(inv => inv.id === invoiceId);
+    if (!existing) return false;
+
+    // Restore stock if it was posted
+    if (existing.status === 'POSTED') {
+      existing.items.forEach(invItem => {
+        setItems(prev => prev.map(i => i.id === invItem.itemId ? {
+          ...i,
+          currentStock: i.currentStock + invItem.qty,
+        } : i));
+      });
+    }
+
+    setSalesInvoices(prev => prev.filter(inv => inv.id !== invoiceId));
+    addAuditLog('DELETE', 'Sales Invoice', `Permanently deleted invoice ${existing.invoiceNo}`);
+    return true;
+  };
+
+  const deletePurchaseInvoice = (invoiceId: string): boolean => {
+    const existing = purchaseInvoices.find(inv => inv.id === invoiceId);
+    if (!existing) return false;
+
+    setPurchaseInvoices(prev => prev.filter(inv => inv.id !== invoiceId));
+    addAuditLog('DELETE', 'Purchase Invoice', `Permanently deleted purchase invoice ${existing.invoiceNo}`);
+    return true;
+  };
+
+  const deleteParty = (partyId: string): boolean => {
+    const existing = parties.find(p => p.id === partyId);
+    if (!existing) return false;
+
+    setParties(prev => prev.filter(p => p.id !== partyId));
+    addAuditLog('DELETE', 'Party Master', `Permanently deleted party ${existing.name}`);
+    return true;
+  };
+
+  const deleteItem = (itemId: string): boolean => {
+    const existing = items.find(i => i.id === itemId);
+    if (!existing) return false;
+
+    setItems(prev => prev.filter(i => i.id !== itemId));
+    addAuditLog('DELETE', 'Item Master', `Permanently deleted item ${existing.name}`);
+    return true;
+  };
+
+  const deleteCreditNote = (id: string): boolean => {
+    setCreditNotes(prev => prev.filter(cn => cn.id !== id));
+    addAuditLog('DELETE', 'Credit Note', `Permanently deleted credit note ${id}`);
+    return true;
+  };
+
+  const deleteDebitNote = (id: string): boolean => {
+    setDebitNotes(prev => prev.filter(dn => dn.id !== id));
+    addAuditLog('DELETE', 'Debit Note', `Permanently deleted debit note ${id}`);
+    return true;
+  };
+
+  const deletePaymentReceipt = (id: string): boolean => {
+    setPaymentsReceipts(prev => prev.filter(pr => pr.id !== id));
+    addAuditLog('DELETE', 'Payment Receipt', `Permanently deleted payment receipt ${id}`);
+    return true;
+  };
+
   const createCreditNote = (
     cnData: Omit<CreditNote, 'id' | 'companyId' | 'creditNoteNo' | 'createdAt' | 'createdBy'>
   ): CreditNote => {
@@ -1411,6 +1533,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         updateSalesInvoice,
         cancelSalesInvoice,
         duplicateSalesInvoice,
+        deleteSalesInvoice,
+        deletePurchaseInvoice,
+        deleteParty,
+        deleteItem,
+        deleteCreditNote,
+        deleteDebitNote,
+        deletePaymentReceipt,
         createCreditNote,
         generateIRN,
         cancelIRN,
@@ -1426,10 +1555,18 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         updateGstConfig: (cfg) => updateGSTConfig(cfg),
         addAuditLog,
         exportGSTR1JSON,
+        dateSelectionMode,
+        setDateSelectionMode,
         selectedFinancialYear,
         setSelectedFinancialYear,
         selectedMonth,
         setSelectedMonth,
+        customStartDate,
+        setCustomStartDate,
+        customEndDate,
+        setCustomEndDate,
+        selectedPeriodLabel,
+        isDateInSelectedPeriod: isDateInActivePeriod,
         isSupabaseModalOpen,
         setIsSupabaseModalOpen,
         supabaseConnected,

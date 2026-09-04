@@ -62,8 +62,9 @@ export const SalesInvoiceModule: React.FC<SalesInvoiceModuleProps> = ({
     duplicateSalesInvoice,
     createCreditNote,
     generateIRN,
-    selectedFinancialYear,
-    selectedMonth
+    deleteSalesInvoice,
+    selectedPeriodLabel,
+    isDateInSelectedPeriod
   } = useApp();
 
   const [searchQuery, setSearchQuery] = useState('');
@@ -521,10 +522,10 @@ export const SalesInvoiceModule: React.FC<SalesInvoiceModuleProps> = ({
     setReturningInvoice(null);
   };
 
-  // Filter invoices with Financial Year + Month period filtering
+  // Filter invoices with unified period filtering (FY, Month, or Custom Date Range)
   const filteredInvoices = salesInvoices.filter(inv => {
-    // 3. GLOBAL FILTER (FINANCIAL YEAR + MONTH)
-    const matchesPeriod = isDateInFiscalPeriod(inv.date, selectedFinancialYear, selectedMonth);
+    // 3. GLOBAL DATE FILTER (FY / Month / Custom)
+    const matchesPeriod = isDateInSelectedPeriod(inv.date);
     if (!matchesPeriod) return false;
 
     const q = (searchQuery || '').trim().toLowerCase();
@@ -543,17 +544,18 @@ export const SalesInvoiceModule: React.FC<SalesInvoiceModuleProps> = ({
     return true;
   });
 
-  const selectedMonthLabel = FISCAL_MONTHS.find(m => m.key === selectedMonth)?.label || 'All Months';
-
   return (
     <div className="space-y-5 pb-20 lg:pb-8">
       {/* Module Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white dark:bg-slate-800 p-4 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-2xs">
         <div>
-          <h1 className="text-lg sm:text-xl font-bold text-slate-900 dark:text-white flex items-center gap-2">
+          <h1 className="text-lg sm:text-xl font-bold text-slate-900 dark:text-white flex items-center gap-2 flex-wrap">
             <span>Sales Invoices</span>
-            <span className="text-xs px-2 py-0.5 rounded-full bg-blue-100 dark:bg-blue-950 text-blue-700 dark:text-blue-300 font-semibold">
+            <span className="text-xs px-2.5 py-0.5 rounded-full bg-blue-100 dark:bg-blue-950 text-blue-700 dark:text-blue-300 font-semibold">
               {filteredInvoices.length} Invoices
+            </span>
+            <span className="text-xs px-2.5 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-medium border border-slate-200 dark:border-slate-700">
+              {selectedPeriodLabel}
             </span>
           </h1>
           <p className="text-xs text-slate-500 mt-0.5">
@@ -613,7 +615,7 @@ export const SalesInvoiceModule: React.FC<SalesInvoiceModuleProps> = ({
               generateBulkSalesInvoicesPdf(
                 selectedList,
                 activeCompany,
-                `Selected_Sales_Invoices_FY${selectedFinancialYear}_${selectedMonth}`
+                `Selected_Sales_Invoices_${selectedPeriodLabel.replace(/[^a-zA-Z0-9]/g, '_')}`
               );
             }}
             className={`px-3 py-1.5 rounded-lg font-bold flex items-center gap-1.5 transition-colors ${
@@ -634,7 +636,7 @@ export const SalesInvoiceModule: React.FC<SalesInvoiceModuleProps> = ({
               generateBulkSalesInvoicesPdf(
                 filteredInvoices,
                 activeCompany,
-                `All_Sales_Invoices_FY${selectedFinancialYear}_${selectedMonth}`
+                `All_Sales_Invoices_${selectedPeriodLabel.replace(/[^a-zA-Z0-9]/g, '_')}`
               );
             }}
             className="px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-bold flex items-center gap-1.5 shadow-2xs transition-colors"
@@ -896,12 +898,25 @@ export const SalesInvoiceModule: React.FC<SalesInvoiceModuleProps> = ({
                         const reason = prompt('Please enter cancellation reason:');
                         if (reason) cancelSalesInvoice(inv.id, reason);
                       }}
-                      className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/40 rounded-lg transition-colors"
+                      className="p-1.5 text-slate-400 hover:text-amber-600 hover:bg-amber-50 dark:hover:bg-amber-950/40 rounded-lg transition-colors"
                       title="Cancel invoice"
                     >
                       <Trash2 className="w-4 h-4" />
                     </button>
                   )}
+
+                  {/* Permanent Delete */}
+                  <button
+                    onClick={() => {
+                      if (confirm(`Are you sure you want to permanently delete invoice ${inv.invoiceNo}? Stock will be reversed.`)) {
+                        deleteSalesInvoice(inv.id);
+                      }
+                    }}
+                    className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/40 rounded-lg transition-colors"
+                    title="Delete invoice record"
+                  >
+                    <Trash2 className="w-4 h-4 text-red-500" />
+                  </button>
                 </div>
               </div>
             </div>

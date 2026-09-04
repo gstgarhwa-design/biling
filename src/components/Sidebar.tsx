@@ -47,7 +47,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
     companies,
     switchCompany,
     selectedFinancialYear, 
-    setIsSupabaseModalOpen,
     getAuthorizedCompaniesForUser 
   } = useApp();
 
@@ -502,24 +501,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
               </div>
             </button>
           )}
-
-          {/* 11. Supabase PostgreSQL Cloud Database */}
-          <button
-            onClick={() => {
-              setIsSupabaseModalOpen(true);
-              if (window.innerWidth < 1024) onClose();
-            }}
-            className="w-full flex items-center justify-between px-3 py-2 rounded-xl transition-all font-semibold text-xs text-emerald-700 dark:text-emerald-300 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/20"
-          >
-            <div className="flex items-center gap-2.5">
-              <Database className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
-              <span>Supabase DB</span>
-            </div>
-            <div className="flex items-center gap-1">
-              <span className="text-[10px] font-mono font-bold text-emerald-600">CONNECTED</span>
-              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-            </div>
-          </button>
         </div>
 
         {/* Bottom Current Entity Card from Frosted Glass Theme */}

@@ -13,16 +13,14 @@ import {
   Lock, 
   Clock, 
   Sparkles,
-  Info,
-  ChevronDown,
-  UserCheck
+  Info
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { normalizeMobile } from '../lib/supabase';
 import { UserRole } from '../types';
 
 export const MobileAuthPage: React.FC = () => {
-  const { requestOtp, verifyOtp, users, companies } = useApp();
+  const { requestOtp, verifyOtp } = useApp();
   
   // State
   const [mobile, setMobile] = useState('');
@@ -36,7 +34,6 @@ export const MobileAuthPage: React.FC = () => {
   const [errorType, setErrorType] = useState<'NONE' | 'NOT_REGISTERED' | 'INACTIVE' | 'INVALID_OTP' | 'EXPIRED'>('NONE');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isContactAdminOpen, setIsContactAdminOpen] = useState(false);
-  const [showTestAccounts, setShowTestAccounts] = useState(false);
   const [loginSuccessRole, setLoginSuccessRole] = useState<UserRole | null>(null);
 
   // References for OTP digit focus management
@@ -185,13 +182,6 @@ export const MobileAuthPage: React.FC = () => {
       setErrorType('NONE');
       digitRefs.current[0]?.focus();
     }
-  };
-
-  const handleQuickFill = (testMobile: string) => {
-    setMobile(testMobile);
-    setStep('MOBILE');
-    setErrorMsg('');
-    setErrorType('NONE');
   };
 
   return (
@@ -444,118 +434,6 @@ export const MobileAuthPage: React.FC = () => {
           </div>
         </div>
       </main>
-
-      {/* Quick Test Profiles Accordion */}
-      <footer className="relative z-10 w-full px-4 sm:px-6 py-3 bg-slate-900/60 border-t border-slate-800 backdrop-blur-md">
-        <div className="max-w-4xl mx-auto">
-          <button
-            type="button"
-            onClick={() => setShowTestAccounts((prev) => !prev)}
-            className="w-full flex items-center justify-between text-xs font-semibold text-slate-400 hover:text-slate-200 py-1"
-          >
-            <span className="flex items-center gap-2">
-              <UserCheck className="w-4 h-4 text-indigo-400" />
-              <span>Quick Test Profiles (Super Admin, Partner Admin, Admin, Staff, Inactive &amp; Unregistered)</span>
-            </span>
-            <ChevronDown className={`w-4 h-4 transition-transform duration-200 ${showTestAccounts ? 'rotate-180' : ''}`} />
-          </button>
-
-          {showTestAccounts && (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 mt-3 pt-3 border-t border-slate-800 text-xs">
-              {/* Super Admin */}
-              <div 
-                onClick={() => handleQuickFill('8228069899')}
-                className="p-2.5 rounded-xl bg-slate-800/80 hover:bg-slate-800 border border-indigo-900/60 cursor-pointer transition-all hover:border-indigo-500"
-              >
-                <div className="flex items-center justify-between mb-1">
-                  <span className="font-bold text-white">Super Admin (All-Time Administrative)</span>
-                  <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-indigo-900/70 text-indigo-300">SUPER ADMIN</span>
-                </div>
-                <div className="text-slate-400 text-[11px] font-mono font-bold text-indigo-300">8228069899</div>
-                <div className="text-[10px] text-slate-500 mt-0.5">All Companies &amp; Full Administrative Access</div>
-              </div>
-
-              {/* Partner Admin */}
-              <div 
-                onClick={() => handleQuickFill('9855667788')}
-                className="p-2.5 rounded-xl bg-slate-800/80 hover:bg-slate-800 border border-purple-900/60 cursor-pointer transition-all hover:border-purple-500"
-              >
-                <div className="flex items-center justify-between mb-1">
-                  <span className="font-bold text-white">Sunil Joshi</span>
-                  <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-purple-900/70 text-purple-300">PARTNER ADMIN</span>
-                </div>
-                <div className="text-slate-400 text-[11px] font-mono">9855667788</div>
-                <div className="text-[10px] text-slate-500 mt-0.5">Assigned to: Comp 1 &amp; Comp 2</div>
-              </div>
-
-              {/* Admin Company 1 */}
-              <div 
-                onClick={() => handleQuickFill('9811223344')}
-                className="p-2.5 rounded-xl bg-slate-800/80 hover:bg-slate-800 border border-blue-900/60 cursor-pointer transition-all hover:border-blue-500"
-              >
-                <div className="flex items-center justify-between mb-1">
-                  <span className="font-bold text-white">Vikram Mehta</span>
-                  <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-blue-900/70 text-blue-300">ADMIN</span>
-                </div>
-                <div className="text-slate-400 text-[11px] font-mono">9811223344</div>
-                <div className="text-[10px] text-slate-500 mt-0.5">Apex Infotech Solutions</div>
-              </div>
-
-              {/* Admin Company 2 */}
-              <div 
-                onClick={() => handleQuickFill('9822334455')}
-                className="p-2.5 rounded-xl bg-slate-800/80 hover:bg-slate-800 border border-blue-900/60 cursor-pointer transition-all hover:border-blue-500"
-              >
-                <div className="flex items-center justify-between mb-1">
-                  <span className="font-bold text-white">Amit Patel</span>
-                  <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-blue-900/70 text-blue-300">ADMIN</span>
-                </div>
-                <div className="text-slate-400 text-[11px] font-mono">9822334455</div>
-                <div className="text-[10px] text-slate-500 mt-0.5">Bharat Logistics</div>
-              </div>
-
-              {/* Staff (Sales Only) */}
-              <div 
-                onClick={() => handleQuickFill('9833445566')}
-                className="p-2.5 rounded-xl bg-slate-800/80 hover:bg-slate-800 border border-emerald-900/60 cursor-pointer transition-all hover:border-emerald-500"
-              >
-                <div className="flex items-center justify-between mb-1">
-                  <span className="font-bold text-white">Priya Verma</span>
-                  <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-emerald-900/70 text-emerald-300">STAFF</span>
-                </div>
-                <div className="text-slate-400 text-[11px] font-mono">9833445566</div>
-                <div className="text-[10px] text-slate-500 mt-0.5">Permissions: Sales &amp; Invoices Only</div>
-              </div>
-
-              {/* Inactive Account */}
-              <div 
-                onClick={() => handleQuickFill('9800000000')}
-                className="p-2.5 rounded-xl bg-slate-800/80 hover:bg-slate-800 border border-red-900/60 cursor-pointer transition-all hover:border-red-500"
-              >
-                <div className="flex items-center justify-between mb-1">
-                  <span className="font-bold text-white">Suresh Kumar</span>
-                  <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-red-900/70 text-red-300">INACTIVE</span>
-                </div>
-                <div className="text-slate-400 text-[11px] font-mono">9800000000</div>
-                <div className="text-[10px] text-red-400 mt-0.5">Deactivated Account (Test Rejection)</div>
-              </div>
-
-              {/* Unregistered Mobile */}
-              <div 
-                onClick={() => handleQuickFill('9999999999')}
-                className="p-2.5 rounded-xl bg-slate-800/80 hover:bg-slate-800 border border-amber-900/60 cursor-pointer transition-all hover:border-amber-500"
-              >
-                <div className="flex items-center justify-between mb-1">
-                  <span className="font-bold text-white">Unregistered Number</span>
-                  <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-amber-900/70 text-amber-300">NEW</span>
-                </div>
-                <div className="text-slate-400 text-[11px] font-mono">9999999999</div>
-                <div className="text-[10px] text-amber-400 mt-0.5">Not in Database (Test Rejection)</div>
-              </div>
-            </div>
-          )}
-        </div>
-      </footer>
 
       {/* Contact Administrator Modal */}
       {isContactAdminOpen && (

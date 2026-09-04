@@ -71,11 +71,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     paymentsReceipts,
     duplicateSalesInvoice,
     setActiveModule,
-    selectedFinancialYear,
-    setSelectedFinancialYear,
-    selectedMonth,
-    setSelectedMonth,
-    setIsSupabaseModalOpen
+    selectedPeriodLabel,
+    isDateInSelectedPeriod
   } = useApp();
 
   const [showCompanyMenu, setShowCompanyMenu] = useState(false);
@@ -115,21 +112,21 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     }
   };
 
-  // 6. DASHBOARD CALCULATIONS: Filter transactions dynamically based on selected FY & Month
+  // 6. DASHBOARD CALCULATIONS: Filter transactions dynamically based on selected date period
   const periodSalesInvoices = salesInvoices.filter(i => 
-    isDateInFiscalPeriod(i.date, selectedFinancialYear, selectedMonth)
+    isDateInSelectedPeriod(i.date)
   );
 
   const periodPurchaseInvoices = purchaseInvoices.filter(i => 
-    isDateInFiscalPeriod(i.date, selectedFinancialYear, selectedMonth)
+    isDateInSelectedPeriod(i.date)
   );
 
   const periodCreditNotes = creditNotes.filter(c => 
-    isDateInFiscalPeriod(c.date, selectedFinancialYear, selectedMonth)
+    isDateInSelectedPeriod(c.date)
   );
 
   const periodDebitNotes = debitNotes.filter(d => 
-    isDateInFiscalPeriod(d.date, selectedFinancialYear, selectedMonth)
+    isDateInSelectedPeriod(d.date)
   );
 
   // Real-time calculations derived from state/database
@@ -284,17 +281,6 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                   </>
                 )}
               </div>
-
-              {/* Supabase Status Pill */}
-              <button
-                onClick={() => setIsSupabaseModalOpen(true)}
-                className="flex items-center gap-1 px-2.5 py-1 rounded-full bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 text-[10px] font-bold border border-emerald-300 dark:border-emerald-800 hover:bg-emerald-100 transition-colors"
-                title="Supabase Database: pqzpcrwdduxclstqfdsz"
-              >
-                <Database className="w-3 h-3 text-emerald-600 dark:text-emerald-400" />
-                <span>Supabase: Online</span>
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-              </button>
             </div>
             <h1 className="text-2xl lg:text-3xl font-bold tracking-tight text-slate-900 dark:text-white mt-2">
               Accounting &amp; GST Command Center
@@ -363,7 +349,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
           </div>
           <div className="mt-3 flex items-center gap-2">
             <span className="px-2 py-0.5 rounded-full bg-emerald-100/80 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 text-[10px] font-bold border border-emerald-200/50">
-              FY {selectedFinancialYear}
+              {selectedPeriodLabel}
             </span>
             <span className="text-[10px] text-slate-500 dark:text-slate-400">
               {postedSalesCount} Posted Bills

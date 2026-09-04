@@ -15,7 +15,7 @@ import {
   X,
   FileSpreadsheet
 } from 'lucide-react';
-import { FinancialYearSelect } from './FinancialYearSelect';
+import { DateSelectionControl } from './DateSelectionControl';
 
 export const AccountingBooksModule: React.FC = () => {
   const { 
@@ -26,8 +26,8 @@ export const AccountingBooksModule: React.FC = () => {
     journalVouchers, 
     parties, 
     createJournalVoucher,
-    selectedFinancialYear,
-    setSelectedFinancialYear
+    selectedPeriodLabel,
+    isDateInSelectedPeriod
   } = useApp();
   const [activeTab, setActiveTab] = useState<'DAYBOOK' | 'JOURNAL' | 'TRIAL_BALANCE' | 'PNL' | 'AGING'>('DAYBOOK');
   const [showJournalModal, setShowJournalModal] = useState(false);
@@ -50,11 +50,11 @@ export const AccountingBooksModule: React.FC = () => {
     creditAmount: number;
   };
 
-  const safeSales = Array.isArray(salesInvoices) ? salesInvoices : [];
-  const safePurchases = Array.isArray(purchaseInvoices) ? purchaseInvoices : [];
-  const safeCredits = Array.isArray(creditNotes) ? creditNotes : [];
-  const safeDebits = Array.isArray(debitNotes) ? debitNotes : [];
-  const safeJournals = Array.isArray(journalVouchers) ? journalVouchers : [];
+  const safeSales = (Array.isArray(salesInvoices) ? salesInvoices : []).filter(s => isDateInSelectedPeriod(s.date));
+  const safePurchases = (Array.isArray(purchaseInvoices) ? purchaseInvoices : []).filter(p => isDateInSelectedPeriod(p.date));
+  const safeCredits = (Array.isArray(creditNotes) ? creditNotes : []).filter(c => isDateInSelectedPeriod(c.date));
+  const safeDebits = (Array.isArray(debitNotes) ? debitNotes : []).filter(d => isDateInSelectedPeriod(d.date));
+  const safeJournals = (Array.isArray(journalVouchers) ? journalVouchers : []).filter(j => isDateInSelectedPeriod(j.date));
   const safeParties = Array.isArray(parties) ? parties : [];
 
   const dayBookEntries: DayBookEntry[] = [
@@ -182,21 +182,19 @@ export const AccountingBooksModule: React.FC = () => {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white dark:bg-slate-800 p-4 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-2xs">
         <div>
-          <h1 className="text-lg sm:text-xl font-bold text-slate-900 dark:text-white flex items-center gap-2">
+          <h1 className="text-lg sm:text-xl font-bold text-slate-900 dark:text-white flex items-center gap-2 flex-wrap">
             <span>Accounting Books &amp; Financial Statements</span>
+            <span className="text-xs px-2.5 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-medium border border-slate-200 dark:border-slate-700">
+              {selectedPeriodLabel}
+            </span>
           </h1>
           <p className="text-xs text-slate-500 mt-0.5">
             Double-entry Day Book, Trial Balance verification, Profit &amp; Loss, and Outstanding Aging
           </p>
         </div>
 
-        <div className="flex items-center gap-2.5">
-          <FinancialYearSelect
-            value={selectedFinancialYear}
-            onChange={setSelectedFinancialYear}
-            compact
-            label="Book FY"
-          />
+        <div className="flex flex-wrap items-center gap-2.5">
+          <DateSelectionControl compact />
 
           <button
             onClick={() => setShowJournalModal(true)}
@@ -367,7 +365,7 @@ export const AccountingBooksModule: React.FC = () => {
           <div className="border-b border-slate-200 dark:border-slate-700 pb-3 flex items-center justify-between">
             <div>
               <h2 className="text-base font-bold text-slate-900 dark:text-white">Statement of Profit and Loss</h2>
-              <p className="text-xs text-slate-500">For the Financial Year 2024-25</p>
+              <p className="text-xs text-slate-500">Period: {selectedPeriodLabel}</p>
             </div>
             <div className="text-right">
               <span className="text-xs text-slate-400">Net Profit:</span>

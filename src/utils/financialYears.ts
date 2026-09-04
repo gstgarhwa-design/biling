@@ -99,44 +99,132 @@ export const FISCAL_MONTHS: FiscalMonthOption[] = [
   { key: '03', label: 'March', short: 'Mar', monthNum: 3 },
 ];
 
+export type DateSelectionMode = 'FY' | 'MONTH' | 'CUSTOM';
+
 /**
- * Checks if a date (YYYY-MM-DD) falls within the selected Financial Year and Month
+ * Formats ISO YYYY-MM-DD to Indian standard DD/MM/YYYY
+ */
+export function formatDateToIndianDisplay(dateStr: string): string {
+  if (!dateStr) return '';
+  const clean = dateStr.split('T')[0];
+  const parts = clean.split('-');
+  if (parts.length === 3) {
+    return `${parts[2]}/${parts[1]}/${parts[0]}`;
+  }
+  return dateStr;
+}
+
+/**
+ * Returns a human-friendly display label for the currently active Date Selection
+ */
+export function getPeriodDisplayLabel(
+  mode: DateSelectionMode,
+  fyValue: string,
+  monthKey: string,
+  customStartDate: string,
+  customEndDate: string
+): string {
+  if (mode === 'CUSTOM') {
+    const from = formatDateToIndianDisplay(customStartDate);
+    const to = formatDateToIndianDisplay(customEndDate);
+    return `Custom Date (${from || 'Start'} to ${to || 'End'})`;
+  }
+
+  if (mode === 'MONTH') {
+    const targetOption = FISCAL_MONTHS.find(m => 
+      m.key === monthKey || 
+      m.key === monthKey.padStart(2, '0') ||
+      m.label.toLowerCase() === monthKey.toLowerCase() ||
+      m.short.toLowerCase() === monthKey.toLowerCase()
+    );
+    const mLabel = targetOption ? targetOption.label : monthKey;
+    if (mLabel.toLowerCase().includes('all')) {
+      return `FY ${fyValue} (Full Year)`;
+    }
+    // Calculate calendar year for the month
+    const parts = fyValue.split('-');
+    const startYear = parseInt(parts[0], 10) || 2025;
+    const mNum = targetOption ? targetOption.monthNum : 4;
+    const calYear = mNum >= 4 ? startYear : startYear + 1;
+    return `${mLabel} ${calYear}`;
+  }
+
+  return `FY ${fyValue}`;
+}
+
+/**
+ * Checks if a date (YYYY-MM-DD) falls within the selected period:
+ * - 'FY': Matches entire Financial Year (1 April - 31 March)
+ * - 'MONTH': Matches specific Fiscal Month of the Financial Year
+ * - 'CUSTOM': Matches Custom Date Range (customStartDate <= date <= customEndDate, inclusive)
+ */
+export function isDateInSelectedPeriod(
+  dateStr: string,
+  mode: DateSelectionMode = 'FY',
+  fyValue: string = '2025-26',
+  monthKey: string = 'ALL',
+  customStartDate?: string,
+  customEndDate?: string
+): boolean {
+  if (!dateStr) return false;
+  const cleanDate = dateStr.split('T')[0];
+
+  // 1. CUSTOM DATE RANGE (Inclusive of boundary dates)
+  if (mode === 'CUSTOM') {
+    if (!customStartDate && !customEndDate) return true;
+    if (customStartDate && customEndDate) {
+      return cleanDate >= customStartDate && cleanDate <= customEndDate;
+    }
+    if (customStartDate) return cleanDate >= customStartDate;
+    if (customEndDate) return cleanDate <= customEndDate;
+    return true;
+  }
+
+  // 2. MONTH MODE
+  if (mode === 'MONTH') {
+    // If month is 'ALL', fallback to FY
+    if (!monthKey || monthKey === 'ALL') {
+      return isDateInFinancialYear(cleanDate, fyValue);
+    }
+
+    const parts = fyValue.split('-');
+    const startYear = parseInt(parts[0], 10) || 2025;
+
+    const targetOption = FISCAL_MONTHS.find(m => 
+      m.key === monthKey || 
+      m.key === monthKey.padStart(2, '0') ||
+      m.label.toLowerCase() === monthKey.toLowerCase() ||
+      m.short.toLowerCase() === monthKey.toLowerCase()
+    );
+
+    if (!targetOption || targetOption.key === 'ALL') {
+      return isDateInFinancialYear(cleanDate, fyValue);
+    }
+
+    const mNum = targetOption.monthNum;
+    const calYear = mNum >= 4 ? startYear : startYear + 1;
+    const mm = String(mNum).padStart(2, '0');
+    const lastDay = new Date(calYear, mNum, 0).getDate();
+    const monthStart = `${calYear}-${mm}-01`;
+    const monthEnd = `${calYear}-${mm}-${String(lastDay).padStart(2, '0')}`;
+
+    return cleanDate >= monthStart && cleanDate <= monthEnd;
+  }
+
+  // 3. FINANCIAL YEAR MODE
+  return isDateInFinancialYear(cleanDate, fyValue);
+}
+
+/**
+ * Legacy compatibility wrapper: Checks if a date falls within fiscal period
  */
 export function isDateInFiscalPeriod(
   dateStr: string,
   fyValue: string,
-  monthKey: string = 'ALL'
+  monthKey: string = 'ALL',
+  mode: DateSelectionMode = 'FY',
+  customStartDate?: string,
+  customEndDate?: string
 ): boolean {
-  if (!dateStr) return false;
-  
-  // First verify financial year
-  if (fyValue && !isDateInFinancialYear(dateStr, fyValue)) {
-    return false;
-  }
-
-  // If all months, and FY matched, it's valid
-  if (!monthKey || monthKey === 'ALL') {
-    return true;
-  }
-
-  // Extract month from dateStr (e.g. "2025-02-15" -> "02")
-  const cleanDate = dateStr.split('T')[0];
-  const dateParts = cleanDate.split('-');
-  if (dateParts.length < 2) return true;
-
-  const txMonth = dateParts[1].padStart(2, '0');
-  
-  // Normalize monthKey (could be "02", "2", or "February")
-  const targetOption = FISCAL_MONTHS.find(m => 
-    m.key === monthKey || 
-    m.key === monthKey.padStart(2, '0') ||
-    m.label.toLowerCase() === monthKey.toLowerCase() ||
-    m.short.toLowerCase() === monthKey.toLowerCase()
-  );
-
-  if (targetOption && targetOption.key !== 'ALL') {
-    return txMonth === targetOption.key;
-  }
-
-  return true;
+  return isDateInSelectedPeriod(dateStr, mode, fyValue, monthKey, customStartDate, customEndDate);
 }

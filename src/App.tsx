@@ -20,7 +20,6 @@ import { GstSettingsModule } from './components/GstSettingsModule';
 import { PartyWiseReportModule } from './components/PartyWiseReportModule';
 import { AdvancedReportsModule } from './components/AdvancedReportsModule';
 import { LoginModal } from './components/LoginModal';
-import { SupabaseModal } from './components/SupabaseModal';
 import { MobileAuthPage } from './components/MobileAuthPage';
 import { StaffDashboard } from './components/StaffDashboard';
 import { PartnerAdminDashboard } from './components/PartnerAdminDashboard';
@@ -36,9 +35,7 @@ const MainLayout: React.FC = () => {
     currentUser, 
     hasPermission,
     isLoginModalOpen, 
-    setIsLoginModalOpen,
-    isSupabaseModalOpen,
-    setIsSupabaseModalOpen
+    setIsLoginModalOpen
   } = useApp();
   const [selectedInvoiceForPrint, setSelectedInvoiceForPrint] = useState<SalesInvoice | null>(null);
   const [invoiceToEdit, setInvoiceToEdit] = useState<SalesInvoice | null>(null);
@@ -271,12 +268,6 @@ const MainLayout: React.FC = () => {
       <LoginModal
         isOpen={isLoginModalOpen}
         onClose={() => setIsLoginModalOpen(false)}
-      />
-
-      {/* Supabase PostgreSQL Database Connection & Status Modal */}
-      <SupabaseModal
-        isOpen={isSupabaseModalOpen}
-        onClose={() => setIsSupabaseModalOpen(false)}
       />
     </div>
   );

@@ -34,8 +34,7 @@ export const SuperAdminDashboard: React.FC = () => {
     activeCompany,
     auditLogs,
     gstConfig,
-    updateGSTConfig,
-    setIsSupabaseModalOpen
+    updateGSTConfig
   } = useApp();
 
   const [activeTab, setActiveTab] = useState<'COMPANIES' | 'USERS' | 'PLANS' | 'API_CONFIG' | 'AUDIT'>('COMPANIES');
@@ -172,16 +171,6 @@ export const SuperAdminDashboard: React.FC = () => {
         </div>
 
         <div className="flex items-center gap-2.5 relative z-10">
-          <button
-            onClick={() => setIsSupabaseModalOpen(true)}
-            className="px-3.5 py-2.5 rounded-2xl border border-emerald-300 dark:border-emerald-800 bg-emerald-50 dark:bg-emerald-950/50 text-emerald-800 dark:text-emerald-300 text-xs font-semibold hover:bg-emerald-100 flex items-center gap-1.5 shadow-xs transition-colors"
-            title="Supabase Database: pqzpcrwdduxclstqfdsz"
-          >
-            <Database className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
-            <span>Supabase DB</span>
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-          </button>
-
           <button
             onClick={() => setShowAddCompanyModal(true)}
             className="px-4 py-2.5 rounded-2xl bg-purple-600 hover:bg-purple-700 text-white font-bold text-xs transition-all shadow-md shadow-purple-500/20 flex items-center gap-1.5 active:scale-98"

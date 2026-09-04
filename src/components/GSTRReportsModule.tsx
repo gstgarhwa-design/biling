@@ -37,21 +37,18 @@ export const GSTRReportsModule: React.FC = () => {
     debitNotes, 
     paymentsReceipts,
     parties,
-    selectedFinancialYear,
-    setSelectedFinancialYear,
-    selectedMonth
+    selectedPeriodLabel,
+    isDateInSelectedPeriod
   } = useApp();
   const [activeReportTab, setActiveReportTab] = useState<'GSTR1' | 'GSTR3B' | 'ITC_RECON' | 'HSN_SUMMARY'>('GSTR1');
   const [returnPeriod, setReturnPeriod] = useState('022025'); // Feb 2025
 
-  const selectedMonthLabel = FISCAL_MONTHS.find(m => m.key === selectedMonth)?.label || 'All Months';
-
-  // 1. & 2. FILTERED BY ACTIVE FINANCIAL YEAR + MONTH
-  const periodSalesInvoices = (salesInvoices || []).filter(i => isDateInFiscalPeriod(i.date, selectedFinancialYear, selectedMonth));
-  const periodPurchaseInvoices = (purchaseInvoices || []).filter(i => isDateInFiscalPeriod(i.date, selectedFinancialYear, selectedMonth));
-  const periodCreditNotes = (creditNotes || []).filter(i => isDateInFiscalPeriod(i.date, selectedFinancialYear, selectedMonth));
-  const periodDebitNotes = (debitNotes || []).filter(i => isDateInFiscalPeriod(i.date, selectedFinancialYear, selectedMonth));
-  const periodPaymentsReceipts = (paymentsReceipts || []).filter(pr => isDateInFiscalPeriod(pr.date, selectedFinancialYear, selectedMonth));
+  // 1. & 2. FILTERED BY ACTIVE PERIOD (FY / Month / Custom)
+  const periodSalesInvoices = (salesInvoices || []).filter(i => isDateInSelectedPeriod(i.date));
+  const periodPurchaseInvoices = (purchaseInvoices || []).filter(i => isDateInSelectedPeriod(i.date));
+  const periodCreditNotes = (creditNotes || []).filter(i => isDateInSelectedPeriod(i.date));
+  const periodDebitNotes = (debitNotes || []).filter(i => isDateInSelectedPeriod(i.date));
+  const periodPaymentsReceipts = (paymentsReceipts || []).filter(pr => isDateInSelectedPeriod(pr.date));
 
   // GSTR-1 Breakup:
   // 1. Table 4: B2B Invoices
@@ -134,7 +131,7 @@ export const GSTRReportsModule: React.FC = () => {
   const handleExportBusinessJson = () => {
     exportComprehensiveBusinessJson(
       activeCompany,
-      `FY${selectedFinancialYear}_${selectedMonthLabel.replace(/\s+/g, '_')}`,
+      selectedPeriodLabel.replace(/[^a-zA-Z0-9]/g, '_'),
       periodSalesInvoices,
       periodPurchaseInvoices,
       periodCreditNotes,
@@ -147,7 +144,7 @@ export const GSTRReportsModule: React.FC = () => {
   const handleExportBusinessExcel = () => {
     exportComprehensiveBusinessExcel(
       activeCompany,
-      `FY${selectedFinancialYear}_${selectedMonthLabel.replace(/\s+/g, '_')}`,
+      selectedPeriodLabel.replace(/[^a-zA-Z0-9]/g, '_'),
       periodSalesInvoices,
       periodPurchaseInvoices,
       periodCreditNotes,
