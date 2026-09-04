@@ -19,24 +19,16 @@ export const Header: React.FC<HeaderProps> = ({ onToggleSidebar }) => {
   const { 
     currentUser, 
     activeCompany, 
-    companies, 
     users,
-    switchCompany, 
     switchUser,
     getSwitchableUsersForCurrentUser,
     setIsLoginModalOpen,
-    logout,
-    getAuthorizedCompaniesForUser
+    logout
   } = useApp();
 
-  const [showCompanyMenu, setShowCompanyMenu] = useState(false);
   const [showUserMenu, setShowUserMenu] = useState(false);
 
   if (!currentUser) return null;
-
-  const userAuthorizedCompanies = getAuthorizedCompaniesForUser(currentUser);
-  const availableCompanies = currentUser.role === 'SUPER_ADMIN' ? companies : (userAuthorizedCompanies.length > 0 ? userAuthorizedCompanies : companies);
-  const canSwitchCompanies = companies.length > 1;
 
   const roleConfigs = [
     { key: 'SUPER_ADMIN', label: 'Super Admin', color: 'bg-purple-100 text-purple-700 dark:bg-purple-950 dark:text-purple-300 border-purple-200 dark:border-purple-800' },
@@ -58,94 +50,22 @@ export const Header: React.FC<HeaderProps> = ({ onToggleSidebar }) => {
             <Menu className="w-5 h-5" />
           </button>
 
-          {/* Quick Actions: Switch Company | Switch User */}
+          {/* Quick Actions: Switch User */}
           <div className="flex items-center gap-1.5 text-xs shrink-0 relative">
-            {/* Switch Company Button */}
-            {canSwitchCompanies ? (
-              <div className="relative">
-                <button
-                  onClick={() => {
-                    setShowCompanyMenu(!showCompanyMenu);
-                    setShowUserMenu(false);
-                  }}
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 min-h-[36px] rounded-lg text-xs font-bold text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 dark:hover:text-indigo-300 bg-indigo-50/80 hover:bg-indigo-100 dark:bg-indigo-950/60 dark:hover:bg-indigo-900/60 border border-indigo-200/70 dark:border-indigo-800/70 transition-all shadow-2xs active:scale-95 cursor-pointer"
-                  title="Switch active company workspace"
-                >
-                  <Building2 className="w-3.5 h-3.5" />
-                  <span className="hidden sm:inline">Switch Company</span>
-                  <span className="sm:hidden">Company</span>
-                  <ChevronDown className={`w-3 h-3 transition-transform ${showCompanyMenu ? 'rotate-180' : ''}`} />
-                </button>
-
-                  {/* Company Dropdown Menu */}
-                  {showCompanyMenu && (
-                    <>
-                      <div 
-                        className="fixed inset-0 z-[90]" 
-                        onClick={() => setShowCompanyMenu(false)} 
-                      />
-                      <div className="absolute left-0 mt-1.5 w-76 sm:w-84 max-h-[75vh] overflow-y-auto bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-800 py-1.5 z-[100] animate-in fade-in zoom-in-95">
-                        <div className="px-3.5 py-2 text-[11px] font-bold uppercase tracking-wider text-slate-400 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between">
-                          <span>{currentUser.role === 'SUPER_ADMIN' ? 'All Companies (Super Admin)' : 'Assigned Companies'}</span>
-                          <span className="text-[10px] px-1.5 py-0.5 rounded bg-indigo-100 dark:bg-indigo-950 text-indigo-600 dark:text-indigo-400 font-semibold">
-                            {availableCompanies.length} Workspaces
-                          </span>
-                        </div>
-                        <div className="py-1 max-h-72 overflow-y-auto">
-                          {availableCompanies.map(comp => {
-                            const isSelected = comp.id === activeCompany?.id;
-                            return (
-                              <button
-                                key={comp.id}
-                                onClick={() => {
-                                  switchCompany(comp.id);
-                                  setShowCompanyMenu(false);
-                                }}
-                                className={`w-full px-3.5 py-2 text-left text-xs flex items-center justify-between hover:bg-indigo-50/70 dark:hover:bg-slate-800/70 transition-colors ${
-                                  isSelected ? 'bg-indigo-50/80 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 font-semibold' : 'text-slate-700 dark:text-slate-200'
-                                }`}
-                              >
-                                <div className="truncate pr-2 min-w-0">
-                                  <div className="truncate font-semibold flex items-center gap-1.5">
-                                    <span>{comp.name}</span>
-                                    {isSelected && (
-                                      <span className="text-[9px] px-1 rounded bg-indigo-200 dark:bg-indigo-900 text-indigo-800 dark:text-indigo-200 font-bold">
-                                        Active
-                                      </span>
-                                    )}
-                                  </div>
-                                  <div className="text-[10px] text-slate-400 font-mono mt-0.5">
-                                    GSTIN: {comp.gstin} • {comp.city}, {comp.state}
-                                  </div>
-                                </div>
-                                {isSelected && (
-                                  <Check className="w-4 h-4 text-indigo-600 dark:text-indigo-400 shrink-0" />
-                                )}
-                              </button>
-                            );
-                          })}
-                        </div>
-                      </div>
-                    </>
-                  )}
-                </div>
-              ) : null}
-
-              {/* Switch User Button */}
-              <div className="relative">
-                <button
-                  onClick={() => {
-                    setShowUserMenu(!showUserMenu);
-                    setShowCompanyMenu(false);
-                  }}
-                  className="inline-flex items-center gap-1.5 px-2.5 py-1.5 min-h-[36px] rounded-lg text-xs font-semibold text-slate-700 dark:text-slate-300 hover:text-indigo-600 dark:hover:text-indigo-400 bg-slate-100/90 hover:bg-slate-200/90 dark:bg-slate-800/90 dark:hover:bg-slate-700/90 border border-slate-200/80 dark:border-slate-700/80 transition-all shadow-2xs active:scale-95 cursor-pointer"
-                  title="Switch authorized user profile or login"
-                >
-                  <Users className="w-3.5 h-3.5 text-slate-500 shrink-0" />
-                  <span className="hidden sm:inline">Switch User</span>
-                  <span className="sm:hidden">User</span>
-                  <ChevronDown className={`w-3 h-3 transition-transform ${showUserMenu ? 'rotate-180' : ''}`} />
-                </button>
+            {/* Switch User Button */}
+            <div className="relative">
+              <button
+                onClick={() => {
+                  setShowUserMenu(!showUserMenu);
+                }}
+                className="inline-flex items-center gap-1.5 px-2.5 py-1.5 min-h-[36px] rounded-lg text-xs font-semibold text-slate-700 dark:text-slate-300 hover:text-indigo-600 dark:hover:text-indigo-400 bg-slate-100/90 hover:bg-slate-200/90 dark:bg-slate-800/90 dark:hover:bg-slate-700/90 border border-slate-200/80 dark:border-slate-700/80 transition-all shadow-2xs active:scale-95 cursor-pointer"
+                title="Switch authorized user profile or login"
+              >
+                <Users className="w-3.5 h-3.5 text-slate-500 shrink-0" />
+                <span className="hidden sm:inline">Switch User</span>
+                <span className="sm:hidden">User</span>
+                <ChevronDown className={`w-3 h-3 transition-transform ${showUserMenu ? 'rotate-180' : ''}`} />
+              </button>
 
                 {/* Switch User Dropdown Menu */}
                 {showUserMenu && (
@@ -327,10 +247,10 @@ export const Header: React.FC<HeaderProps> = ({ onToggleSidebar }) => {
             )}
           </div>
 
-        {/* Right: Date Selection & Logged In User Profile */}
-        <div className="flex items-center gap-3">
-          {/* Unified Date Selection Control (Financial Year, Month, Custom Date) */}
-          <DateSelectionControl />
+        {/* Right: Custom Date Calendar & Logged In User Profile */}
+        <div className="flex items-center gap-2 sm:gap-2.5">
+          {/* Custom Date Calendar Control (With FY and Month Selection) */}
+          <DateSelectionControl compact={true} />
 
           {/* Logged in User Profile */}
           <div className="flex items-center gap-2 pl-2 border-l border-slate-200 dark:border-slate-800">
