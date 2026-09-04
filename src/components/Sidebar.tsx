@@ -22,7 +22,8 @@ import {
   FileText,
   AlertCircle,
   Database,
-  Check
+  Check,
+  Briefcase
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -46,8 +47,12 @@ export const Sidebar: React.FC<SidebarProps> = ({
     companies,
     switchCompany,
     selectedFinancialYear, 
-    setIsSupabaseModalOpen 
+    setIsSupabaseModalOpen,
+    getAuthorizedCompaniesForUser 
   } = useApp();
+
+  const userAuthorizedCompanies = getAuthorizedCompaniesForUser(currentUser);
+  const switchableCompanies = currentUser?.role === 'SUPER_ADMIN' ? companies : userAuthorizedCompanies;
 
   const [showCompanyPicker, setShowCompanyPicker] = useState(false);
 
@@ -77,6 +82,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
     let target = module;
     if (module === 'dashboard') target = 'DASHBOARD';
     else if (module === 'super-admin') target = 'SUPER_ADMIN';
+    else if (module === 'partner-admin') target = 'PARTNER_ADMIN';
     else if (['sales-invoices', 'sales-return', 'payment-receipts'].includes(module)) target = 'SALES';
     else if (['purchase-invoices', 'purchase-return', 'supplier-payments'].includes(module)) target = 'PURCHASE';
     else if (['party-master'].includes(module)) target = 'PARTY_MASTER';
@@ -98,8 +104,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
   };
 
   const isCurrentActive = (key: string) => {
-    if (key === 'dashboard' && (activeModule === 'DASHBOARD' || activeModule === 'dashboard')) return true;
+    if (key === 'dashboard' && (activeModule === 'DASHBOARD' || activeModule === 'dashboard' || activeModule === 'STAFF_DASHBOARD')) return true;
     if (key === 'super-admin' && (activeModule === 'SUPER_ADMIN' || activeModule === 'super-admin')) return true;
+    if (key === 'partner-admin' && (activeModule === 'PARTNER_ADMIN' || activeModule === 'partner-admin')) return true;
     if (key === 'sales' && activeModule === 'SALES') return true;
     if (key === 'purchase' && activeModule === 'PURCHASE') return true;
     if (key === 'party-master' && activeModule === 'PARTY_MASTER') return true;
@@ -164,6 +171,26 @@ export const Sidebar: React.FC<SidebarProps> = ({
               </div>
               <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-purple-100 text-purple-700 dark:bg-purple-900/60 dark:text-purple-200 font-bold">
                 Master
+              </span>
+            </button>
+          )}
+
+          {/* Partner Admin exclusive dashboard */}
+          {currentUser?.role === 'PARTNER_ADMIN' && (
+            <button
+              onClick={() => handleSelect('partner-admin')}
+              className={`w-full flex items-center justify-between px-3 py-2 rounded-xl font-medium transition-all ${
+                isCurrentActive('partner-admin')
+                  ? 'bg-purple-600 text-white shadow-md shadow-purple-500/20 font-semibold'
+                  : 'text-purple-700 dark:text-purple-300 hover:bg-white/60 dark:hover:bg-slate-800/60'
+              }`}
+            >
+              <div className="flex items-center gap-2.5">
+                <Briefcase className="w-4 h-4" />
+                <span>Partner Dashboard</span>
+              </div>
+              <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-purple-100 text-purple-700 dark:bg-purple-900/60 dark:text-purple-200 font-bold">
+                Partner
               </span>
             </button>
           )}
@@ -528,9 +555,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
               />
               <div className="absolute bottom-full left-4 right-4 mb-2 max-h-64 overflow-y-auto bg-white/95 dark:bg-slate-900/95 backdrop-blur-2xl rounded-2xl shadow-2xl border border-indigo-200 dark:border-indigo-900/80 py-2 z-40 scrollbar-thin animate-in fade-in slide-in-from-bottom-2">
                 <div className="px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-400 border-b border-slate-100 dark:border-slate-800">
-                  Switch Company ({companies.length})
+                  Switch Company ({switchableCompanies.length})
                 </div>
-                {companies.map(comp => (
+                {switchableCompanies.map(comp => (
                   <button
                     key={comp.id}
                     type="button"

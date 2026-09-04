@@ -1,4 +1,4 @@
-export type UserRole = 'SUPER_ADMIN' | 'ADMIN' | 'STAFF';
+export type UserRole = 'SUPER_ADMIN' | 'PARTNER_ADMIN' | 'ADMIN' | 'STAFF';
 
 export interface GranularPermissions {
   sales: boolean;
@@ -11,6 +11,16 @@ export interface GranularPermissions {
   settings: boolean;
 }
 
+export interface AuthSession {
+  userId: string;
+  token: string;
+  mobile: string;
+  role: UserRole;
+  companyId?: string;
+  expiresAt: number;
+  loginTime: string;
+}
+
 export interface AdminCompanyPermission {
   id: string;
   adminId: string;
@@ -18,7 +28,7 @@ export interface AdminCompanyPermission {
   adminName: string;
   companyId: string;
   companyName: string;
-  role: 'ADMIN' | 'STAFF';
+  role: 'ADMIN' | 'STAFF' | 'PARTNER_ADMIN';
   permissions: GranularPermissions;
   status: 'ACTIVE' | 'INACTIVE';
   createdAt: string;
@@ -49,6 +59,7 @@ export interface User {
   mobile: string;
   role: UserRole;
   companyId?: string; // Admin and Staff are strictly bound to 1 company
+  assignedCompanyIds?: string[]; // Partner Admin can be assigned to multiple companies
   assignedAdminId?: string; // Staff is assigned to an Admin
   permissions: GranularPermissions;
   active: boolean;

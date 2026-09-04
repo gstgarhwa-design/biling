@@ -46,8 +46,8 @@ export const Header: React.FC<HeaderProps> = ({ onToggleSidebar, activeModule })
   if (!currentUser) return null;
 
   const userAuthorizedCompanies = getAuthorizedCompaniesForUser(currentUser);
-  const canSwitchCompanies = currentUser.role === 'SUPER_ADMIN' || currentUser.role === 'ADMIN' || userAuthorizedCompanies.length > 1;
-  const availableCompanies = currentUser.role === 'SUPER_ADMIN' || currentUser.role === 'ADMIN' ? companies : userAuthorizedCompanies;
+  const availableCompanies = currentUser.role === 'SUPER_ADMIN' ? companies : userAuthorizedCompanies;
+  const canSwitchCompanies = currentUser.role === 'SUPER_ADMIN' || userAuthorizedCompanies.length > 1;
 
   return (
     <header className="sticky top-0 z-40 bg-white/70 dark:bg-slate-900/70 backdrop-blur-xl border-b border-slate-200/50 dark:border-slate-800/50 px-4 py-2.5 transition-colors">
@@ -205,8 +205,9 @@ export const Header: React.FC<HeaderProps> = ({ onToggleSidebar, activeModule })
                         <span>{u.name}</span>
                         <span className={`text-[9px] px-1.5 py-0.2 rounded font-bold uppercase ${
                           u.role === 'SUPER_ADMIN' ? 'bg-purple-100 text-purple-700 dark:bg-purple-950 dark:text-purple-300' :
+                          u.role === 'PARTNER_ADMIN' ? 'bg-purple-100 text-purple-700 dark:bg-purple-950 dark:text-purple-300' :
                           u.role === 'ADMIN' ? 'bg-indigo-100 text-indigo-700 dark:bg-indigo-950 dark:text-indigo-300' :
-                          'bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-300'
+                          'bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300'
                         }`}>
                           {u.role.replace('_', ' ')}
                         </span>

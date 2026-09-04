@@ -274,7 +274,7 @@ export const StaffManagementModule: React.FC = () => {
                     maxLength={10}
                     value={mobile}
                     onChange={e => setMobile(e.target.value.replace(/\D/g, ''))}
-                    placeholder="9876543210"
+                    placeholder="8228069899"
                     className="w-full p-2.5 rounded-r-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 font-mono"
                   />
                 </div>

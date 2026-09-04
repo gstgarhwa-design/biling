@@ -21,6 +21,10 @@ import { PartyWiseReportModule } from './components/PartyWiseReportModule';
 import { AdvancedReportsModule } from './components/AdvancedReportsModule';
 import { LoginModal } from './components/LoginModal';
 import { SupabaseModal } from './components/SupabaseModal';
+import { MobileAuthPage } from './components/MobileAuthPage';
+import { StaffDashboard } from './components/StaffDashboard';
+import { PartnerAdminDashboard } from './components/PartnerAdminDashboard';
+import { AccessDeniedView } from './components/AccessDeniedView';
 import { SalesInvoice } from './types';
 
 const MainLayout: React.FC = () => {
@@ -30,6 +34,7 @@ const MainLayout: React.FC = () => {
     isSidebarOpen, 
     setIsSidebarOpen, 
     currentUser, 
+    hasPermission,
     isLoginModalOpen, 
     setIsLoginModalOpen,
     isSupabaseModalOpen,
@@ -44,12 +49,23 @@ const MainLayout: React.FC = () => {
   const [quickCreateItem, setQuickCreateItem] = useState(false);
   const [quickCreatePurchase, setQuickCreatePurchase] = useState(false);
 
-  // Render the current active module
+  // If user is not authenticated, display Mobile Login Page as First Page
+  if (!currentUser) {
+    return <MobileAuthPage />;
+  }
+
+  // Render the current active module with strict RBAC & Company Scoping
   const renderActiveModule = () => {
     switch (activeModule) {
       case 'DASHBOARD':
-        if (currentUser?.role === 'SUPER_ADMIN') {
+        if (currentUser.role === 'SUPER_ADMIN') {
           return <SuperAdminDashboard />;
+        }
+        if (currentUser.role === 'PARTNER_ADMIN') {
+          return <PartnerAdminDashboard />;
+        }
+        if (currentUser.role === 'STAFF') {
+          return <StaffDashboard />;
         }
         return (
           <AdminDashboard
@@ -63,9 +79,24 @@ const MainLayout: React.FC = () => {
         );
 
       case 'SUPER_ADMIN':
+        if (currentUser.role !== 'SUPER_ADMIN') {
+          return <AccessDeniedView moduleName="Super Admin Control Panel" requiredPermission="SUPER_ADMIN" />;
+        }
         return <SuperAdminDashboard />;
 
+      case 'PARTNER_ADMIN':
+        if (currentUser.role !== 'PARTNER_ADMIN' && currentUser.role !== 'SUPER_ADMIN') {
+          return <AccessDeniedView moduleName="Partner Admin Portfolio" requiredPermission="PARTNER_ADMIN" />;
+        }
+        return <PartnerAdminDashboard />;
+
+      case 'STAFF_DASHBOARD':
+        return <StaffDashboard />;
+
       case 'SALES':
+        if (!hasPermission('sales')) {
+          return <AccessDeniedView moduleName="Sales & Tax Invoices" requiredPermission="sales" />;
+        }
         return (
           <SalesInvoiceModule
             isCreateOpen={quickCreateInvoice}
@@ -77,6 +108,9 @@ const MainLayout: React.FC = () => {
         );
 
       case 'PURCHASE':
+        if (!hasPermission('purchase')) {
+          return <AccessDeniedView moduleName="Purchase & Inward Bills" requiredPermission="purchase" />;
+        }
         return (
           <PurchaseModule
             isCreateOpen={quickCreatePurchase}
@@ -93,6 +127,9 @@ const MainLayout: React.FC = () => {
         );
 
       case 'ITEM_MASTER':
+        if (!hasPermission('inventory')) {
+          return <AccessDeniedView moduleName="Item Master & Inventory" requiredPermission="inventory" />;
+        }
         return (
           <ItemMasterModule
             isCreateOpen={quickCreateItem}
@@ -101,9 +138,15 @@ const MainLayout: React.FC = () => {
         );
 
       case 'GSTR_REPORTS':
+        if (!hasPermission('gstReports')) {
+          return <AccessDeniedView moduleName="GST Reports & Returns" requiredPermission="gstReports" />;
+        }
         return <GSTRReportsModule />;
 
       case 'E_INVOICE':
+        if (!hasPermission('sales')) {
+          return <AccessDeniedView moduleName="e-Invoice IRP Gateway" requiredPermission="sales" />;
+        }
         return (
           <EInvoiceHub
             onViewInvoice={(inv) => setSelectedInvoiceForPrint(inv)}
@@ -111,6 +154,9 @@ const MainLayout: React.FC = () => {
         );
 
       case 'E_WAY_BILL':
+        if (!hasPermission('sales')) {
+          return <AccessDeniedView moduleName="E-Way Bill System" requiredPermission="sales" />;
+        }
         return (
           <EWayBillHub
             onViewInvoice={(inv) => setSelectedInvoiceForPrint(inv)}
@@ -118,9 +164,15 @@ const MainLayout: React.FC = () => {
         );
 
       case 'ACCOUNTING_BOOKS':
+        if (!hasPermission('accounting')) {
+          return <AccessDeniedView moduleName="Day Book & Accounting Ledgers" requiredPermission="accounting" />;
+        }
         return <AccountingBooksModule />;
 
       case 'STAFF_MGMT':
+        if (currentUser.role === 'STAFF') {
+          return <AccessDeniedView moduleName="Staff & Permissions Management" requiredPermission="ADMIN" />;
+        }
         return <StaffManagementModule />;
 
       case 'AUDIT_TRAIL':
@@ -133,9 +185,21 @@ const MainLayout: React.FC = () => {
         return <AdvancedReportsModule />;
 
       case 'SETTINGS':
+        if (!hasPermission('settings')) {
+          return <AccessDeniedView moduleName="Company & GST Settings" requiredPermission="settings" />;
+        }
         return <GstSettingsModule />;
 
       default:
+        if (currentUser.role === 'SUPER_ADMIN') {
+          return <SuperAdminDashboard />;
+        }
+        if (currentUser.role === 'PARTNER_ADMIN') {
+          return <PartnerAdminDashboard />;
+        }
+        if (currentUser.role === 'STAFF') {
+          return <StaffDashboard />;
+        }
         return (
           <AdminDashboard
             onCreateInvoice={() => setQuickCreateInvoice(true)}

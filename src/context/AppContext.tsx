@@ -17,7 +17,9 @@ import {
   UserRole,
   AdminCompanyPermission,
   PaymentStatus,
+  AuthSession,
 } from '../types';
+import { normalizeMobile } from '../lib/supabase';
 import {
   INITIAL_COMPANIES,
   INITIAL_USERS,
@@ -71,6 +73,19 @@ interface AppContextType {
 
   // Auth & Session
   loginWithOtp: (mobile: string, otp: string, selectedCompanyId?: string) => boolean;
+  requestOtp: (mobile: string) => {
+    success: boolean;
+    status: 'SENT' | 'NOT_REGISTERED' | 'INACTIVE';
+    maskedMobile?: string;
+    otp?: string;
+    message: string;
+  };
+  verifyOtp: (mobile: string, otp: string) => {
+    success: boolean;
+    role?: UserRole;
+    user?: User;
+    message: string;
+  };
   quickLogin: (userId: string) => void;
   logout: () => void;
   hasPermission: (module: keyof GranularPermissions) => boolean;
@@ -162,6 +177,9 @@ const STORAGE_KEYS = {
   ADMIN_COMPANY_PERMISSIONS: 'gst_erp_admin_company_perms_v1',
 };
 
+// All-Time Super Admin & Administrative Mobile Number
+export const SUPER_ADMIN_ALL_TIME_MOBILE = '8228069899';
+
 function loadStorage<T>(key: string, defaultVal: T): T {
   try {
     const saved = localStorage.getItem(key);
@@ -189,7 +207,45 @@ function saveStorage<T>(key: string, value: T) {
 }
 
 export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [users, setUsers] = useState<User[]>(() => loadStorage(STORAGE_KEYS.USERS, INITIAL_USERS));
+  const [users, setUsers] = useState<User[]>(() => {
+    const rawUsers = loadStorage<User[]>(STORAGE_KEYS.USERS, INITIAL_USERS);
+    let hasSuperAdmin = false;
+    const updated = rawUsers.map(u => {
+      if (u.role === 'SUPER_ADMIN' || u.id === 'user-super') {
+        hasSuperAdmin = true;
+        return {
+          ...u,
+          mobile: SUPER_ADMIN_ALL_TIME_MOBILE,
+          active: true,
+          role: 'SUPER_ADMIN' as const,
+        };
+      }
+      return u;
+    });
+
+    if (!hasSuperAdmin) {
+      updated.unshift({
+        id: 'user-super',
+        name: 'Rajesh Sharma',
+        mobile: SUPER_ADMIN_ALL_TIME_MOBILE,
+        role: 'SUPER_ADMIN',
+        permissions: {
+          sales: true,
+          purchase: true,
+          payments: true,
+          inventory: true,
+          gstReports: true,
+          einvoice: true,
+          accounting: true,
+          settings: true,
+        },
+        active: true,
+        createdAt: '2025-01-01',
+      });
+    }
+
+    return updated;
+  });
   const [companies, setCompanies] = useState<Company[]>(() => loadStorage(STORAGE_KEYS.COMPANIES, INITIAL_COMPANIES));
   const [parties, setParties] = useState<Party[]>(() => loadStorage(STORAGE_KEYS.PARTIES, INITIAL_PARTIES));
   const [items, setItems] = useState<Item[]>(() => loadStorage(STORAGE_KEYS.ITEMS, INITIAL_ITEMS));
@@ -206,9 +262,21 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     loadStorage(STORAGE_KEYS.ADMIN_COMPANY_PERMISSIONS, INITIAL_ADMIN_COMPANY_PERMISSIONS)
   );
 
-  // Current session
+  // Current session & active OTP state
+  const [pendingOtpState, setPendingOtpState] = useState<{
+    mobile: string;
+    otp: string;
+    expiresAt: number;
+    attempts: number;
+  } | null>(null);
+
   const [currentUserId, setCurrentUserId] = useState<string>(() => {
-    return loadStorage(STORAGE_KEYS.CURRENT_USER_ID, 'user-admin-1'); // Default to Admin Company A
+    // Restore session if valid
+    const session = loadStorage<AuthSession | null>('gst_erp_session_v2', null);
+    if (session && session.expiresAt > Date.now() && session.userId) {
+      return session.userId;
+    }
+    return ''; // Default to empty string so user arrives at First Page Login!
   });
 
   const [activeCompanyId, setActiveCompanyId] = useState<string>(() => {
@@ -238,11 +306,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     
     // Find all active permissions for this user (by mobile or id)
     const activePerms = adminCompanyPermissions.filter(p => 
-      (p.adminMobile === user.mobile || p.adminId === user.id) && p.status === 'ACTIVE'
+      (normalizeMobile(p.adminMobile) === normalizeMobile(user.mobile) || p.adminId === user.id) && p.status === 'ACTIVE'
     );
     const permittedCompIds = new Set(activePerms.map(p => p.companyId));
     if (user.companyId) {
       permittedCompIds.add(user.companyId);
+    }
+    if (user.assignedCompanyIds && Array.isArray(user.assignedCompanyIds)) {
+      user.assignedCompanyIds.forEach(id => permittedCompIds.add(id));
     }
     
     const authorized = companies.filter(c => permittedCompIds.has(c.id) && c.active);
@@ -250,15 +321,21 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   const getAuthorizedCompaniesForMobile = (mobile: string): Company[] => {
-    const cleanMobile = mobile.trim();
-    const matchedUser = users.find(u => u.mobile === cleanMobile);
+    const cleanMobile = normalizeMobile(mobile);
+    if (cleanMobile === SUPER_ADMIN_ALL_TIME_MOBILE) {
+      return companies.filter(c => c.active);
+    }
+    const matchedUser = users.find(u => normalizeMobile(u.mobile) === cleanMobile);
     if (matchedUser?.role === 'SUPER_ADMIN') {
       return companies.filter(c => c.active);
     }
-    const activePerms = adminCompanyPermissions.filter(p => p.adminMobile === cleanMobile && p.status === 'ACTIVE');
+    const activePerms = adminCompanyPermissions.filter(p => normalizeMobile(p.adminMobile) === cleanMobile && p.status === 'ACTIVE');
     const permittedCompIds = new Set(activePerms.map(p => p.companyId));
     if (matchedUser?.companyId) {
       permittedCompIds.add(matchedUser.companyId);
+    }
+    if (matchedUser?.assignedCompanyIds && Array.isArray(matchedUser.assignedCompanyIds)) {
+      matchedUser.assignedCompanyIds.forEach(id => permittedCompIds.add(id));
     }
     return companies.filter(c => permittedCompIds.has(c.id) && c.active);
   };
@@ -311,13 +388,26 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setAuditLogs(prev => [newLog, ...prev]);
   };
 
+  // Auto session validation: If active user is deactivated or deleted, immediately terminate session
+  useEffect(() => {
+    if (currentUserId) {
+      const u = users.find(usr => usr.id === currentUserId);
+      if (!u || !u.active) {
+        localStorage.removeItem('gst_erp_session_v2');
+        localStorage.removeItem(STORAGE_KEYS.CURRENT_USER_ID);
+        setCurrentUserId('');
+        setActiveModule('DASHBOARD');
+      }
+    }
+  }, [currentUserId, users]);
+
   const hasPermission = (module: keyof GranularPermissions): boolean => {
     if (!currentUser) return false;
     if (currentUser.role === 'SUPER_ADMIN') return true;
 
     // Check specific permission record for active company
     const activePerm = adminCompanyPermissions.find(p => 
-      (p.adminMobile === currentUser.mobile || p.adminId === currentUser.id) && 
+      (normalizeMobile(p.adminMobile) === normalizeMobile(currentUser.mobile) || p.adminId === currentUser.id) && 
       p.companyId === effectiveCompanyId &&
       p.status === 'ACTIVE'
     );
@@ -326,73 +416,277 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
 
     if (currentUser.role === 'ADMIN') return true;
-    return !!currentUser.permissions[module];
+    if (currentUser.role === 'PARTNER_ADMIN') {
+      return currentUser.permissions ? !!currentUser.permissions[module] : true;
+    }
+    return !!currentUser.permissions?.[module];
+  };
+
+  // Step 1: Request OTP with database pre-check (Does not send OTP if unregistered or inactive)
+  const requestOtp = (mobile: string) => {
+    const cleanMobile = normalizeMobile(mobile);
+    if (!cleanMobile || cleanMobile.length !== 10) {
+      return {
+        success: false,
+        status: 'NOT_REGISTERED' as const,
+        message: 'Please enter a valid 10-digit mobile number.',
+      };
+    }
+
+    let matchedUser = users.find(u => normalizeMobile(u.mobile) === cleanMobile);
+    
+    // Guaranteed All-Time Super Admin / Platform Administrator registration
+    if (!matchedUser && cleanMobile === SUPER_ADMIN_ALL_TIME_MOBILE) {
+      matchedUser = {
+        id: 'user-super',
+        name: 'Rajesh Sharma',
+        mobile: SUPER_ADMIN_ALL_TIME_MOBILE,
+        role: 'SUPER_ADMIN',
+        permissions: {
+          sales: true,
+          purchase: true,
+          payments: true,
+          inventory: true,
+          gstReports: true,
+          einvoice: true,
+          accounting: true,
+          settings: true,
+        },
+        active: true,
+        createdAt: '2025-01-01',
+      };
+      setUsers(prev => [matchedUser!, ...prev.filter(u => u.id !== 'user-super')]);
+    }
+
+    if (!matchedUser) {
+      return {
+        success: false,
+        status: 'NOT_REGISTERED' as const,
+        message: 'Mobile number is not registered. Please contact your administrator.',
+      };
+    }
+
+    if (!matchedUser.active) {
+      return {
+        success: false,
+        status: 'INACTIVE' as const,
+        message: 'Your account is deactivated. Please contact your administrator.',
+      };
+    }
+
+    // Generate secure 6-digit OTP
+    const generatedOtp = Math.floor(100000 + Math.random() * 900000).toString();
+    const expiresAt = Date.now() + 5 * 60 * 1000; // 5 minutes validity
+    setPendingOtpState({
+      mobile: cleanMobile,
+      otp: generatedOtp,
+      expiresAt,
+      attempts: 0,
+    });
+
+    const maskedMobile = `+91 ****** ${cleanMobile.slice(-4)}`;
+    addAuditLog('LOGIN', 'Security', `Generated OTP for ${matchedUser.name} (${cleanMobile})`);
+
+    return {
+      success: true,
+      status: 'SENT' as const,
+      maskedMobile,
+      otp: generatedOtp,
+      message: 'OTP sent successfully to registered mobile number.',
+    };
+  };
+
+  // Step 2: Verify OTP and perform Automatic Role Detection & Routing
+  const verifyOtp = (mobile: string, otp: string) => {
+    const cleanMobile = normalizeMobile(mobile);
+    const cleanOtp = otp.trim();
+
+    let matchedUser = users.find(u => normalizeMobile(u.mobile) === cleanMobile);
+
+    // Guaranteed All-Time Super Admin / Platform Administrator registration
+    if (!matchedUser && cleanMobile === SUPER_ADMIN_ALL_TIME_MOBILE) {
+      matchedUser = {
+        id: 'user-super',
+        name: 'Rajesh Sharma',
+        mobile: SUPER_ADMIN_ALL_TIME_MOBILE,
+        role: 'SUPER_ADMIN',
+        permissions: {
+          sales: true,
+          purchase: true,
+          payments: true,
+          inventory: true,
+          gstReports: true,
+          einvoice: true,
+          accounting: true,
+          settings: true,
+        },
+        active: true,
+        createdAt: '2025-01-01',
+      };
+      setUsers(prev => [matchedUser!, ...prev.filter(u => u.id !== 'user-super')]);
+    }
+
+    if (!matchedUser) {
+      return {
+        success: false,
+        message: 'Mobile number is not registered. Please contact your administrator.',
+      };
+    }
+
+    if (!matchedUser.active) {
+      return {
+        success: false,
+        message: 'Your account is deactivated. Please contact your administrator.',
+      };
+    }
+
+    // Check expiration and attempts
+    if (pendingOtpState && pendingOtpState.mobile === cleanMobile) {
+      if (Date.now() > pendingOtpState.expiresAt) {
+        return {
+          success: false,
+          message: 'OTP has expired. Please request a new OTP.',
+        };
+      }
+      if (pendingOtpState.attempts >= 5) {
+        return {
+          success: false,
+          message: 'Maximum verification attempts exceeded. Please request a new OTP.',
+        };
+      }
+    }
+
+    // Verify OTP against active state or demo bypass code 123456
+    const isMatch = (pendingOtpState && pendingOtpState.mobile === cleanMobile && pendingOtpState.otp === cleanOtp) || cleanOtp === '123456';
+
+    if (!isMatch) {
+      if (pendingOtpState && pendingOtpState.mobile === cleanMobile) {
+        setPendingOtpState(prev => prev ? { ...prev, attempts: prev.attempts + 1 } : null);
+      }
+      return {
+        success: false,
+        message: 'Invalid OTP. Please check and try again.',
+      };
+    }
+
+    // OTP Validated! Clear pending OTP state
+    setPendingOtpState(null);
+
+    // AUTOMATIC ROLE DETECTION: Super Admin, Partner Admin, Admin, Staff
+    const detectedRole = matchedUser.role;
+
+    // Determine target company & target routing view
+    let assignedCompId = 'comp-1';
+    if (detectedRole === 'SUPER_ADMIN') {
+      assignedCompId = activeCompanyId || companies[0]?.id || 'comp-1';
+      setActiveModule('SUPER_ADMIN');
+    } else if (detectedRole === 'PARTNER_ADMIN') {
+      assignedCompId = matchedUser.assignedCompanyIds?.[0] || 'comp-1';
+      setActiveModule('PARTNER_ADMIN');
+    } else if (detectedRole === 'ADMIN') {
+      assignedCompId = matchedUser.companyId || 'comp-1';
+      setActiveModule('DASHBOARD');
+    } else {
+      // STAFF
+      assignedCompId = matchedUser.companyId || 'comp-1';
+      setActiveModule('STAFF_DASHBOARD');
+    }
+
+    setActiveCompanyId(assignedCompId);
+    setCurrentUserId(matchedUser.id);
+
+    // Persist session
+    const session: AuthSession = {
+      userId: matchedUser.id,
+      token: 'tok_' + Math.random().toString(36).substring(2) + Date.now().toString(36),
+      mobile: cleanMobile,
+      role: detectedRole,
+      companyId: assignedCompId,
+      expiresAt: Date.now() + 24 * 60 * 60 * 1000,
+      loginTime: new Date().toISOString(),
+    };
+    saveStorage('gst_erp_session_v2', session);
+    saveStorage(STORAGE_KEYS.CURRENT_USER_ID, matchedUser.id);
+
+    addAuditLog('LOGIN', 'Security', `User ${matchedUser.name} (${detectedRole}) logged in via Mobile OTP`);
+
+    return {
+      success: true,
+      role: detectedRole,
+      user: matchedUser,
+      message: 'Authentication successful',
+    };
   };
 
   const loginWithOtp = (mobile: string, otp: string, selectedCompanyId?: string): boolean => {
-    const cleanMobile = mobile.trim();
-    // Look up user by mobile
-    const user = users.find(u => u.mobile === cleanMobile);
-    if (user && user.active) {
-      const authorized = getAuthorizedCompaniesForMobile(cleanMobile);
-      if (user.role !== 'SUPER_ADMIN' && authorized.length === 0) {
-        return false;
-      }
-
-      setCurrentUserId(user.id);
-      if (selectedCompanyId && authorized.some(c => c.id === selectedCompanyId)) {
-        setActiveCompanyId(selectedCompanyId);
-      } else if (authorized.length > 0) {
-        setActiveCompanyId(authorized[0].id);
-      } else if (user.companyId) {
-        setActiveCompanyId(user.companyId);
-      }
-      addAuditLog('LOGIN', 'Security', `User ${user.name} logged in via mobile OTP (${cleanMobile})`);
-      return true;
+    const res = verifyOtp(mobile, otp);
+    if (res.success && selectedCompanyId) {
+      setActiveCompanyId(selectedCompanyId);
     }
-    return false;
+    return res.success;
   };
 
   const quickLogin = (userId: string) => {
     const user = users.find(u => u.id === userId);
-    if (user) {
+    if (user && user.active) {
       setCurrentUserId(user.id);
       const authorized = getAuthorizedCompaniesForUser(user);
-      if (authorized.length > 0) {
-        setActiveCompanyId(authorized[0].id);
-      } else if (user.companyId) {
-        setActiveCompanyId(user.companyId);
-      }
+      const compId = authorized[0]?.id || user.companyId || 'comp-1';
+      setActiveCompanyId(compId);
+      
+      // Auto route by role
+      if (user.role === 'SUPER_ADMIN') setActiveModule('SUPER_ADMIN');
+      else if (user.role === 'PARTNER_ADMIN') setActiveModule('PARTNER_ADMIN');
+      else if (user.role === 'ADMIN') setActiveModule('DASHBOARD');
+      else setActiveModule('STAFF_DASHBOARD');
+
+      const session: AuthSession = {
+        userId: user.id,
+        token: 'tok_quick_' + Date.now(),
+        mobile: user.mobile,
+        role: user.role,
+        companyId: compId,
+        expiresAt: Date.now() + 24 * 60 * 60 * 1000,
+        loginTime: new Date().toISOString(),
+      };
+      saveStorage('gst_erp_session_v2', session);
+      saveStorage(STORAGE_KEYS.CURRENT_USER_ID, user.id);
+
       addAuditLog('LOGIN', 'Security', `Fast Switch to ${user.name} (${user.role})`);
     }
   };
 
   const logout = () => {
     if (currentUser) {
-      addAuditLog('LOGOUT', 'Security', `User ${currentUser.name} logged out`);
+      addAuditLog('LOGOUT', 'Security', `User ${currentUser.name} (${currentUser.role}) logged out`);
     }
+    localStorage.removeItem('gst_erp_session_v2');
+    localStorage.removeItem(STORAGE_KEYS.CURRENT_USER_ID);
     setCurrentUserId('');
+    setActiveModule('DASHBOARD');
   };
 
   const switchCompany = (companyId: string) => {
     if (!currentUser) return;
-    if (currentUser.role === 'SUPER_ADMIN' || currentUser.role === 'ADMIN') {
+    
+    // Super Admin has unrestricted access to all entities
+    if (currentUser.role === 'SUPER_ADMIN') {
       setActiveCompanyId(companyId);
       const comp = companies.find(c => c.id === companyId);
-      addAuditLog('UPDATE', 'Company Switcher', `${currentUser.role} ${currentUser.name} switched view to company: ${comp?.name}`);
+      addAuditLog('UPDATE', 'Company Switcher', `Super Admin switched view to company: ${comp?.name}`);
       return;
     }
 
-    // Check if the current user is authorized for this company
+    // Company Isolation Enforcement: Admin, Partner Admin, Staff MUST be authorized
     const authorized = getAuthorizedCompaniesForUser(currentUser);
     const isAuthorized = authorized.some(c => c.id === companyId);
     if (isAuthorized) {
       setActiveCompanyId(companyId);
       const comp = companies.find(c => c.id === companyId);
-      addAuditLog('UPDATE', 'Company Switcher', `Staff ${currentUser.name} switched view to authorized company: ${comp?.name}`);
+      addAuditLog('UPDATE', 'Company Switcher', `${currentUser.role} ${currentUser.name} switched view to company: ${comp?.name}`);
     } else {
-      alert('Security Alert: You do not have authorized permission to access this company data.');
-      addAuditLog('PERMISSION_CHANGE', 'Authorization', `Blocked unauthorized attempt by ${currentUser.name} to access company ID: ${companyId}`);
+      alert(`Access Denied: You do not have authorized permission to access company data for company ID: ${companyId}`);
+      addAuditLog('PERMISSION_CHANGE', 'Authorization', `Blocked unauthorized attempt by ${currentUser.name} (${currentUser.role}) to access company ID: ${companyId}`);
     }
   };
 
@@ -1096,6 +1390,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         isLoginModalOpen,
         setIsLoginModalOpen,
         loginWithOtp,
+        requestOtp,
+        verifyOtp,
         quickLogin,
         logout,
         hasPermission,

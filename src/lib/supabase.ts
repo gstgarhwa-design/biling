@@ -27,6 +27,16 @@ export function saveSupabaseCredentials(url: string, key: string) {
   }
 }
 
+/**
+ * Normalizes any phone/mobile input to a clean 10-digit Indian mobile number
+ * Strips whitespace, dashes, parenthesises, leading +91, 91, or 0.
+ */
+export function normalizeMobile(phone: string): string {
+  if (!phone) return '';
+  const clean = phone.toString().replace(/\D/g, '');
+  return clean.slice(-10);
+}
+
 const creds = getSupabaseCredentials();
 
 // Initialize Supabase Client
@@ -145,13 +155,14 @@ CREATE TABLE IF NOT EXISTS public.companies (
   created_at TIMESTAMPTZ DEFAULT now()
 );
 
--- 2. USERS & STAFF
+// 2. USERS & STAFF
 CREATE TABLE IF NOT EXISTS public.users (
   id TEXT PRIMARY KEY,
   name TEXT NOT NULL,
   mobile TEXT NOT NULL UNIQUE,
-  role TEXT NOT NULL CHECK (role IN ('SUPER_ADMIN', 'ADMIN', 'STAFF')),
+  role TEXT NOT NULL CHECK (role IN ('SUPER_ADMIN', 'PARTNER_ADMIN', 'ADMIN', 'STAFF')),
   company_id TEXT REFERENCES public.companies(id) ON DELETE SET NULL,
+  assigned_company_ids JSONB DEFAULT '[]'::jsonb,
   assigned_admin_id TEXT REFERENCES public.users(id) ON DELETE SET NULL,
   permissions JSONB DEFAULT '{}'::jsonb,
   active BOOLEAN DEFAULT true,
