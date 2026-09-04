@@ -289,7 +289,7 @@ export const GSTRReportsModule: React.FC = () => {
           <div className="flex items-center gap-1.5">
             <span className="text-slate-500">Period Filter:</span>
             <span className="font-bold text-slate-800 dark:text-slate-200 bg-slate-100 dark:bg-slate-700 px-2 py-0.5 rounded">
-              FY {selectedFinancialYear} • {selectedMonthLabel}
+              {selectedPeriodLabel}
             </span>
           </div>
         </div>

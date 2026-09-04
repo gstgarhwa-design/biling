@@ -58,8 +58,8 @@ export interface User {
   name: string;
   mobile: string;
   role: UserRole;
-  companyId?: string; // Admin and Staff are strictly bound to 1 company
-  assignedCompanyIds?: string[]; // Partner Admin can be assigned to multiple companies
+  companyId?: string; // Default or primary company
+  assignedCompanyIds?: string[]; // Multiple companies assigned to Admin, Partner Admin, or Staff
   assignedAdminId?: string; // Staff is assigned to an Admin
   permissions: GranularPermissions;
   active: boolean;
@@ -379,16 +379,42 @@ export interface StockMovement {
   createdAt: string;
 }
 
+export type AuditLogAction = 
+  | 'LOGIN' 
+  | 'LOGOUT' 
+  | 'OTP_REQUEST' 
+  | 'OTP_VERIFY' 
+  | 'CREATE' 
+  | 'ADD' 
+  | 'UPDATE' 
+  | 'EDIT' 
+  | 'DELETE' 
+  | 'COMPANY_ASSIGN' 
+  | 'COMPANY_SWITCH' 
+  | 'PERMISSION_CHANGE' 
+  | 'GENERATE_IRN' 
+  | 'CANCEL_IRN' 
+  | 'GENERATE_EWAY' 
+  | 'EXPORT' 
+  | 'PDF_GENERATE';
+
 export interface AuditLog {
   id: string;
   companyId?: string;
+  companyName?: string;
   timestamp: string;
+  formattedTimestamp?: string;
   userId: string;
+  userMobile?: string;
   userName: string;
   userRole: UserRole;
-  action: 'LOGIN' | 'LOGOUT' | 'CREATE' | 'UPDATE' | 'DELETE' | 'GENERATE_IRN' | 'CANCEL_IRN' | 'GENERATE_EWAY' | 'PERMISSION_CHANGE';
+  action: AuditLogAction;
   module: string;
+  recordId?: string;
   details: string;
+  oldValue?: string;
+  newValue?: string;
+  status?: 'SUCCESS' | 'FAILED';
   ip: string;
 }
 

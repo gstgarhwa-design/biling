@@ -12,6 +12,7 @@ import {
   JournalEntry,
   StockMovement,
   AuditLog,
+  AuditLogAction,
   GSTApiConfig,
   GranularPermissions,
   UserRole,
@@ -59,12 +60,14 @@ interface AppContextType {
   auditLogs: AuditLog[];
   gstConfig: GSTApiConfig;
 
-  // Multi-Company Admin Permissions
+  // Multi-Company Admin Permissions & Assignment
   adminCompanyPermissions: AdminCompanyPermission[];
   assignAdminCompanyPermission: (data: Omit<AdminCompanyPermission, 'id' | 'createdAt' | 'updatedAt'>) => AdminCompanyPermission;
   updateAdminCompanyPermission: (id: string, data: Partial<AdminCompanyPermission>) => void;
   removeAdminCompanyPermission: (id: string) => void;
   toggleAdminCompanyPermissionStatus: (id: string) => void;
+  assignCompanyToUser: (userId: string, companyId: string) => void;
+  removeCompanyFromUser: (userId: string, companyId: string) => void;
   getAuthorizedCompaniesForUser: (user: User | null) => Company[];
   getAuthorizedCompaniesForMobile: (mobile: string) => Company[];
   
@@ -86,6 +89,14 @@ interface AppContextType {
     message: string;
   };
   verifyOtp: (mobile: string, otp: string) => {
+    success: boolean;
+    requiresCompanySelection?: boolean;
+    authorizedCompanies?: Company[];
+    role?: UserRole;
+    user?: User;
+    message: string;
+  };
+  selectActiveCompanyAndLogin: (user: User, companyId: string) => {
     success: boolean;
     role?: UserRole;
     user?: User;
@@ -144,7 +155,24 @@ interface AppContextType {
   // System Config & Audit
   updateGSTConfig: (data: Partial<GSTApiConfig>) => void;
   updateGstConfig: (data: any) => void;
-  addAuditLog: (action: AuditLog['action'], module: string, details: string) => void;
+  addAuditLog: (
+    action: AuditLogAction, 
+    module: string, 
+    details: string,
+    options?: {
+      recordId?: string;
+      oldValue?: string;
+      newValue?: string;
+      status?: 'SUCCESS' | 'FAILED';
+      companyId?: string;
+      companyName?: string;
+      userId?: string;
+      userMobile?: string;
+      userName?: string;
+      userRole?: UserRole;
+      ip?: string;
+    }
+  ) => void;
   exportGSTR1JSON: () => string;
 
   // Unified Date Selection State
@@ -204,6 +232,29 @@ const STORAGE_KEYS = {
 
 // All-Time Super Admin & Administrative Mobile Number
 export const SUPER_ADMIN_ALL_TIME_MOBILE = '8228069899';
+
+export const formatAuditTimestamp = (date: Date = new Date()): string => {
+  const day = String(date.getDate()).padStart(2, '0');
+  const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  const month = monthNames[date.getMonth()];
+  const year = date.getFullYear();
+  let hours = date.getHours();
+  const minutes = String(date.getMinutes()).padStart(2, '0');
+  const ampm = hours >= 12 ? 'PM' : 'AM';
+  hours = hours % 12;
+  hours = hours ? hours : 12;
+  const strHours = String(hours).padStart(2, '0');
+  return `${day} ${month} ${year}, ${strHours}:${minutes} ${ampm}`;
+};
+
+export interface VerifyOtpResult {
+  success: boolean;
+  requiresCompanySelection?: boolean;
+  authorizedCompanies?: Company[];
+  role?: UserRole;
+  user?: User;
+  message: string;
+}
 
 function loadStorage<T>(key: string, defaultVal: T): T {
   try {
@@ -342,7 +393,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     const activePerms = adminCompanyPermissions.filter(p => 
       (normalizeMobile(p.adminMobile) === normalizeMobile(user.mobile) || p.adminId === user.id) && p.status === 'ACTIVE'
     );
-    const permittedCompIds = new Set(activePerms.map(p => p.companyId));
+    const permittedCompIds = new Set<string>();
+    activePerms.forEach(p => permittedCompIds.add(p.companyId));
     if (user.companyId) {
       permittedCompIds.add(user.companyId);
     }
@@ -351,7 +403,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
     
     const authorized = companies.filter(c => permittedCompIds.has(c.id) && c.active);
-    return authorized.length > 0 ? authorized : (companies[0] ? [companies[0]] : []);
+    return authorized;
   };
 
   const getAuthorizedCompaniesForMobile = (mobile: string): Company[] => {
@@ -364,7 +416,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       return companies.filter(c => c.active);
     }
     const activePerms = adminCompanyPermissions.filter(p => normalizeMobile(p.adminMobile) === cleanMobile && p.status === 'ACTIVE');
-    const permittedCompIds = new Set(activePerms.map(p => p.companyId));
+    const permittedCompIds = new Set<string>();
+    activePerms.forEach(p => permittedCompIds.add(p.companyId));
     if (matchedUser?.companyId) {
       permittedCompIds.add(matchedUser.companyId);
     }
@@ -379,12 +432,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   // - ADMIN: Can switch between ANY company they have authorized permission for.
   // - STAFF: Bound to their assigned company.
   const authorizedCompanies = getAuthorizedCompaniesForUser(currentUser);
-  const isCurrentActiveAuthorized = authorizedCompanies.some(c => c.id === activeCompanyId);
+  const isCurrentActiveAuthorized = currentUser?.role === 'SUPER_ADMIN' || authorizedCompanies.some(c => c.id === activeCompanyId);
   const effectiveCompanyId = currentUser?.role === 'SUPER_ADMIN' 
-    ? activeCompanyId 
+    ? (activeCompanyId || companies[0]?.id || 'comp-1') 
     : (isCurrentActiveAuthorized ? activeCompanyId : (authorizedCompanies[0]?.id || currentUser?.companyId || 'comp-1'));
 
-  const activeCompany = (companies || []).find(c => c.id === effectiveCompanyId) || companies?.[0] || null;
+  const activeCompany = (companies || []).find(c => c.id === effectiveCompanyId) || (currentUser?.role === 'SUPER_ADMIN' ? companies?.[0] : authorizedCompanies[0]) || null;
 
   // Save changes to localStorage
   useEffect(() => { saveStorage(STORAGE_KEYS.USERS, users); }, [users]);
@@ -430,18 +483,50 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     );
   }, [dateSelectionMode, selectedFinancialYear, selectedMonth, customStartDate, customEndDate]);
 
-  const addAuditLog = (action: AuditLog['action'], module: string, details: string) => {
+  const addAuditLog = (
+    action: AuditLogAction, 
+    module: string, 
+    details: string,
+    options?: {
+      recordId?: string;
+      oldValue?: string;
+      newValue?: string;
+      status?: 'SUCCESS' | 'FAILED';
+      companyId?: string;
+      companyName?: string;
+      userId?: string;
+      userMobile?: string;
+      userName?: string;
+      userRole?: UserRole;
+      ip?: string;
+    }
+  ) => {
+    const now = new Date();
+    const targetCompId = options?.companyId || activeCompany?.id;
+    const targetCompName = options?.companyName || (companies.find(c => c.id === targetCompId)?.name) || activeCompany?.name || '';
+    const actorId = options?.userId || currentUser?.id || 'sys';
+    const actorName = options?.userName || currentUser?.name || 'System';
+    const actorRole = options?.userRole || currentUser?.role || 'ADMIN';
+    const actorMobile = options?.userMobile || currentUser?.mobile || '';
+
     const newLog: AuditLog = {
-      id: 'aud-' + Date.now(),
-      companyId: activeCompany?.id,
-      timestamp: new Date().toISOString().replace('T', ' ').substring(0, 19),
-      userId: currentUser?.id || 'sys',
-      userName: currentUser?.name || 'System',
-      userRole: currentUser?.role || 'STAFF',
+      id: 'aud-' + Date.now() + '-' + Math.floor(Math.random() * 1000),
+      companyId: targetCompId,
+      companyName: targetCompName,
+      timestamp: now.toISOString(),
+      formattedTimestamp: formatAuditTimestamp(now),
+      userId: actorId,
+      userMobile: actorMobile,
+      userName: actorName,
+      userRole: actorRole,
       action,
       module,
+      recordId: options?.recordId,
       details,
-      ip: '103.15.' + Math.floor(Math.random() * 200) + '.' + Math.floor(Math.random() * 200),
+      oldValue: options?.oldValue,
+      newValue: options?.newValue,
+      status: options?.status || 'SUCCESS',
+      ip: options?.ip || ('103.15.' + Math.floor(Math.random() * 200) + '.' + Math.floor(Math.random() * 200)),
     };
     setAuditLogs(prev => [newLog, ...prev]);
   };
@@ -555,7 +640,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   // Step 2: Verify OTP and perform Automatic Role Detection & Routing
-  const verifyOtp = (mobile: string, otp: string) => {
+  const verifyOtp = (mobile: string, otp: string): VerifyOtpResult => {
     const cleanMobile = normalizeMobile(mobile);
     const cleanOtp = otp.trim();
 
@@ -632,91 +717,147 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     // AUTOMATIC ROLE DETECTION: Super Admin, Partner Admin, Admin, Staff
     const detectedRole = matchedUser.role;
+    const authorized = getAuthorizedCompaniesForUser(matchedUser);
 
-    // Determine target company & target routing view
-    let assignedCompId = 'comp-1';
+    if (detectedRole !== 'SUPER_ADMIN' && authorized.length === 0) {
+      addAuditLog('LOGIN', 'Security', `Login blocked for ${matchedUser.name}: No authorized company assigned to mobile ${cleanMobile}`, {
+        userId: matchedUser.id,
+        userMobile: cleanMobile,
+        userName: matchedUser.name,
+        userRole: detectedRole,
+        status: 'FAILED',
+      });
+      return {
+        success: false,
+        message: 'No authorized company is assigned to this mobile number. Please contact Super Administrator.',
+      };
+    }
+
+    // MULTI-COMPANY SELECTION LOGIC:
+    // If the user has more than 1 assigned company and is not SUPER_ADMIN, prompt company selection
+    if (detectedRole !== 'SUPER_ADMIN' && authorized.length > 1) {
+      addAuditLog('OTP_VERIFY', 'Security', `OTP verified for ${matchedUser.name} (${detectedRole}). Prompting company selection from ${authorized.length} assigned entities`, {
+        userId: matchedUser.id,
+        userMobile: cleanMobile,
+        userName: matchedUser.name,
+        userRole: detectedRole,
+        status: 'SUCCESS',
+      });
+      return {
+        success: true,
+        requiresCompanySelection: true,
+        authorizedCompanies: authorized,
+        user: matchedUser,
+        role: detectedRole,
+        message: 'OTP verified. Please choose your active working company.',
+      };
+    }
+
+    // Single assigned company or SUPER_ADMIN
+    const assignedCompId = detectedRole === 'SUPER_ADMIN' 
+      ? (activeCompanyId || companies[0]?.id || 'comp-1') 
+      : (authorized[0]?.id || 'comp-1');
+
+    return selectActiveCompanyAndLogin(matchedUser, assignedCompId);
+  };
+
+  const selectActiveCompanyAndLogin = (user: User, companyId: string): VerifyOtpResult => {
+    const cleanMobile = normalizeMobile(user.mobile);
+    const detectedRole = user.role;
+
+    if (detectedRole !== 'SUPER_ADMIN') {
+      const authorized = getAuthorizedCompaniesForUser(user);
+      const isAllowed = authorized.some(c => c.id === companyId);
+      if (!isAllowed) {
+        addAuditLog('LOGIN', 'Security', `Unauthorized company access attempt by ${user.name} for company ID: ${companyId}`, {
+          userId: user.id,
+          userMobile: cleanMobile,
+          userName: user.name,
+          userRole: detectedRole,
+          companyId,
+          status: 'FAILED',
+        });
+        return {
+          success: false,
+          message: 'Access Denied: You are not authorized for this company.',
+        };
+      }
+    }
+
+    const comp = companies.find(c => c.id === companyId);
+    setActiveCompanyId(companyId);
+    setCurrentUserId(user.id);
+
+    // Route by role
     if (detectedRole === 'SUPER_ADMIN') {
-      assignedCompId = activeCompanyId || companies[0]?.id || 'comp-1';
       setActiveModule('SUPER_ADMIN');
     } else if (detectedRole === 'PARTNER_ADMIN') {
-      assignedCompId = matchedUser.assignedCompanyIds?.[0] || 'comp-1';
       setActiveModule('PARTNER_ADMIN');
     } else if (detectedRole === 'ADMIN') {
-      assignedCompId = matchedUser.companyId || 'comp-1';
       setActiveModule('DASHBOARD');
     } else {
-      // STAFF
-      assignedCompId = matchedUser.companyId || 'comp-1';
       setActiveModule('STAFF_DASHBOARD');
     }
 
-    setActiveCompanyId(assignedCompId);
-    setCurrentUserId(matchedUser.id);
-
-    // Persist session
     const session: AuthSession = {
-      userId: matchedUser.id,
+      userId: user.id,
       token: 'tok_' + Math.random().toString(36).substring(2) + Date.now().toString(36),
       mobile: cleanMobile,
       role: detectedRole,
-      companyId: assignedCompId,
+      companyId,
       expiresAt: Date.now() + 24 * 60 * 60 * 1000,
       loginTime: new Date().toISOString(),
     };
     saveStorage('gst_erp_session_v2', session);
-    saveStorage(STORAGE_KEYS.CURRENT_USER_ID, matchedUser.id);
+    saveStorage(STORAGE_KEYS.CURRENT_USER_ID, user.id);
 
-    addAuditLog('LOGIN', 'Security', `User ${matchedUser.name} (${detectedRole}) logged in via Mobile OTP`);
+    addAuditLog('LOGIN', 'Security', `User ${user.name} (${detectedRole}) logged in with active company: ${comp?.name || companyId}`, {
+      userId: user.id,
+      userMobile: cleanMobile,
+      userName: user.name,
+      userRole: detectedRole,
+      companyId,
+      companyName: comp?.name,
+      status: 'SUCCESS',
+    });
 
     return {
       success: true,
       role: detectedRole,
-      user: matchedUser,
+      user,
       message: 'Authentication successful',
     };
   };
 
   const loginWithOtp = (mobile: string, otp: string, selectedCompanyId?: string): boolean => {
     const res = verifyOtp(mobile, otp);
-    if (res.success && selectedCompanyId) {
-      setActiveCompanyId(selectedCompanyId);
+    if (res.success && selectedCompanyId && res.user) {
+      selectActiveCompanyAndLogin(res.user, selectedCompanyId);
+      return true;
     }
-    return res.success;
+    return res.success && !res.requiresCompanySelection;
   };
 
   const quickLogin = (userId: string) => {
     const user = users.find(u => u.id === userId);
     if (user && user.active) {
-      setCurrentUserId(user.id);
       const authorized = getAuthorizedCompaniesForUser(user);
       const compId = authorized[0]?.id || user.companyId || 'comp-1';
-      setActiveCompanyId(compId);
-      
-      // Auto route by role
-      if (user.role === 'SUPER_ADMIN') setActiveModule('SUPER_ADMIN');
-      else if (user.role === 'PARTNER_ADMIN') setActiveModule('PARTNER_ADMIN');
-      else if (user.role === 'ADMIN') setActiveModule('DASHBOARD');
-      else setActiveModule('STAFF_DASHBOARD');
-
-      const session: AuthSession = {
-        userId: user.id,
-        token: 'tok_quick_' + Date.now(),
-        mobile: user.mobile,
-        role: user.role,
-        companyId: compId,
-        expiresAt: Date.now() + 24 * 60 * 60 * 1000,
-        loginTime: new Date().toISOString(),
-      };
-      saveStorage('gst_erp_session_v2', session);
-      saveStorage(STORAGE_KEYS.CURRENT_USER_ID, user.id);
-
-      addAuditLog('LOGIN', 'Security', `Fast Switch to ${user.name} (${user.role})`);
+      selectActiveCompanyAndLogin(user, compId);
     }
   };
 
   const logout = () => {
     if (currentUser) {
-      addAuditLog('LOGOUT', 'Security', `User ${currentUser.name} (${currentUser.role}) logged out`);
+      addAuditLog('LOGOUT', 'Security', `User ${currentUser.name} (${currentUser.role}) logged out of session`, {
+        userId: currentUser.id,
+        userMobile: currentUser.mobile,
+        userName: currentUser.name,
+        userRole: currentUser.role,
+        companyId: activeCompany?.id,
+        companyName: activeCompany?.name,
+        status: 'SUCCESS',
+      });
     }
     localStorage.removeItem('gst_erp_session_v2');
     localStorage.removeItem(STORAGE_KEYS.CURRENT_USER_ID);
@@ -731,7 +872,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     if (currentUser.role === 'SUPER_ADMIN') {
       setActiveCompanyId(companyId);
       const comp = companies.find(c => c.id === companyId);
-      addAuditLog('UPDATE', 'Company Switcher', `Super Admin switched view to company: ${comp?.name}`);
+      addAuditLog('COMPANY_SWITCH', 'Company Switcher', `Super Admin switched active company to: ${comp?.name}`, {
+        companyId,
+        companyName: comp?.name,
+        newValue: comp?.name,
+        status: 'SUCCESS',
+      });
       return;
     }
 
@@ -741,14 +887,124 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     if (isAuthorized) {
       setActiveCompanyId(companyId);
       const comp = companies.find(c => c.id === companyId);
-      addAuditLog('UPDATE', 'Company Switcher', `${currentUser.role} ${currentUser.name} switched view to company: ${comp?.name}`);
+      addAuditLog('COMPANY_SWITCH', 'Company Switcher', `${currentUser.role} ${currentUser.name} switched active company to: ${comp?.name}`, {
+        companyId,
+        companyName: comp?.name,
+        newValue: comp?.name,
+        status: 'SUCCESS',
+      });
     } else {
       alert(`Access Denied: You do not have authorized permission to access company data for company ID: ${companyId}`);
-      addAuditLog('PERMISSION_CHANGE', 'Authorization', `Blocked unauthorized attempt by ${currentUser.name} (${currentUser.role}) to access company ID: ${companyId}`);
+      addAuditLog('PERMISSION_CHANGE', 'Authorization', `Blocked unauthorized attempt by ${currentUser.name} (${currentUser.role}) to access company ID: ${companyId}`, {
+        companyId,
+        status: 'FAILED',
+      });
     }
   };
 
+  const assignCompanyToUser = (userId: string, companyId: string) => {
+    const user = users.find(u => u.id === userId);
+    const comp = companies.find(c => c.id === companyId);
+    if (!user || !comp) return;
+
+    // Prevent duplicate assignment
+    const currentAssigned = user.assignedCompanyIds || [];
+    if (currentAssigned.includes(companyId) && user.companyId === companyId) {
+      return;
+    }
+
+    const updatedAssigned = Array.from(new Set([...currentAssigned, companyId]));
+    const updatedUser: User = {
+      ...user,
+      companyId: user.companyId || companyId,
+      assignedCompanyIds: updatedAssigned,
+    };
+    setUsers(prev => prev.map(u => u.id === userId ? updatedUser : u));
+
+    // Also sync adminCompanyPermissions database junction
+    const existingPerm = adminCompanyPermissions.find(p => 
+      (p.adminId === user.id || normalizeMobile(p.adminMobile) === normalizeMobile(user.mobile)) && 
+      p.companyId === companyId
+    );
+
+    if (existingPerm) {
+      if (existingPerm.status !== 'ACTIVE') {
+        updateAdminCompanyPermission(existingPerm.id, { status: 'ACTIVE' });
+      }
+    } else {
+      const newPerm: AdminCompanyPermission = {
+        id: 'perm-' + Date.now() + '-' + Math.floor(Math.random() * 100),
+        adminId: user.id,
+        adminMobile: user.mobile,
+        adminName: user.name,
+        companyId: comp.id,
+        companyName: comp.name,
+        role: user.role === 'SUPER_ADMIN' ? 'ADMIN' : (user.role as any),
+        permissions: user.permissions,
+        status: 'ACTIVE',
+        createdAt: new Date().toISOString().substring(0, 10),
+        updatedAt: new Date().toISOString().substring(0, 10),
+      };
+      setAdminCompanyPermissions(prev => [newPerm, ...prev]);
+    }
+
+    addAuditLog('COMPANY_ASSIGN', 'Company Assignment', `Assigned company ${comp.name} (${comp.gstin}) to user ${user.name} (${user.mobile})`, {
+      companyId: comp.id,
+      companyName: comp.name,
+      recordId: user.id,
+      newValue: comp.name,
+      status: 'SUCCESS',
+    });
+  };
+
+  const removeCompanyFromUser = (userId: string, companyId: string) => {
+    const user = users.find(u => u.id === userId);
+    const comp = companies.find(c => c.id === companyId);
+    if (!user || !comp) return;
+
+    const updatedAssigned = (user.assignedCompanyIds || []).filter(id => id !== companyId);
+    const nextCompanyId = user.companyId === companyId ? (updatedAssigned[0] || '') : user.companyId;
+
+    const updatedUser: User = {
+      ...user,
+      companyId: nextCompanyId,
+      assignedCompanyIds: updatedAssigned,
+    };
+    setUsers(prev => prev.map(u => u.id === userId ? updatedUser : u));
+
+    // Update adminCompanyPermissions
+    const existingPerm = adminCompanyPermissions.find(p => 
+      (p.adminId === user.id || normalizeMobile(p.adminMobile) === normalizeMobile(user.mobile)) && 
+      p.companyId === companyId
+    );
+    if (existingPerm) {
+      removeAdminCompanyPermission(existingPerm.id);
+    }
+
+    addAuditLog('COMPANY_ASSIGN', 'Company Assignment', `Removed company ${comp.name} assignment from user ${user.name} (${user.mobile})`, {
+      companyId: comp.id,
+      companyName: comp.name,
+      recordId: user.id,
+      oldValue: comp.name,
+      status: 'SUCCESS',
+    });
+  };
+
   const assignAdminCompanyPermission = (data: Omit<AdminCompanyPermission, 'id' | 'createdAt' | 'updatedAt'>): AdminCompanyPermission => {
+    // Keep user's assignedCompanyIds in sync
+    const matchedUser = users.find(u => normalizeMobile(u.mobile) === normalizeMobile(data.adminMobile) || u.id === data.adminId);
+    if (matchedUser) {
+      const currentAssigned = matchedUser.assignedCompanyIds || [];
+      if (!currentAssigned.includes(data.companyId)) {
+        const updatedAssigned = [...currentAssigned, data.companyId];
+        setUsers(prev => prev.map(u => u.id === matchedUser.id ? {
+          ...u,
+          companyId: u.companyId || data.companyId,
+          assignedCompanyIds: updatedAssigned
+        } : u));
+      }
+    }
+
     const existing = adminCompanyPermissions.find(p => p.adminMobile === data.adminMobile && p.companyId === data.companyId);
     if (existing) {
       const updated: AdminCompanyPermission = {
@@ -759,7 +1015,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         updatedAt: new Date().toISOString().substring(0, 10),
       };
       setAdminCompanyPermissions(prev => prev.map(p => p.id === existing.id ? updated : p));
-      addAuditLog('UPDATE', 'Permissions', `Updated company access for ${data.adminName} (${data.companyName})`);
+      addAuditLog('UPDATE', 'Permissions', `Updated company access for ${data.adminName} (${data.companyName})`, {
+        companyId: data.companyId,
+        companyName: data.companyName,
+        recordId: existing.id,
+        status: 'SUCCESS',
+      });
       return updated;
     }
 
@@ -770,7 +1031,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       updatedAt: new Date().toISOString().substring(0, 10),
     };
     setAdminCompanyPermissions(prev => [newPerm, ...prev]);
-    addAuditLog('CREATE', 'Permissions', `Assigned ${data.companyName} access to ${data.adminName} (${data.adminMobile})`);
+    addAuditLog('COMPANY_ASSIGN', 'Permissions', `Assigned ${data.companyName} access to ${data.adminName} (${data.adminMobile})`, {
+      companyId: data.companyId,
+      companyName: data.companyName,
+      recordId: newPerm.id,
+      newValue: data.companyName,
+      status: 'SUCCESS',
+    });
     return newPerm;
   };
 
@@ -780,13 +1047,32 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       ...data,
       updatedAt: new Date().toISOString().substring(0, 10),
     } : p));
-    addAuditLog('UPDATE', 'Permissions', `Updated admin company permission ID: ${id}`);
+    addAuditLog('UPDATE', 'Permissions', `Updated admin company permission ID: ${id}`, {
+      recordId: id,
+      status: 'SUCCESS',
+    });
   };
 
   const removeAdminCompanyPermission = (id: string) => {
     const existing = adminCompanyPermissions.find(p => p.id === id);
     setAdminCompanyPermissions(prev => prev.filter(p => p.id !== id));
-    addAuditLog('DELETE', 'Permissions', `Removed company access: ${existing?.companyName} for ${existing?.adminName}`);
+    
+    // Also remove from user.assignedCompanyIds
+    if (existing) {
+      const matchedUser = users.find(u => normalizeMobile(u.mobile) === normalizeMobile(existing.adminMobile) || u.id === existing.adminId);
+      if (matchedUser && matchedUser.assignedCompanyIds) {
+        const updated = matchedUser.assignedCompanyIds.filter(cid => cid !== existing.companyId);
+        setUsers(prev => prev.map(u => u.id === matchedUser.id ? { ...u, assignedCompanyIds: updated } : u));
+      }
+    }
+
+    addAuditLog('COMPANY_ASSIGN', 'Permissions', `Removed company access: ${existing?.companyName} for ${existing?.adminName}`, {
+      companyId: existing?.companyId,
+      companyName: existing?.companyName,
+      recordId: id,
+      oldValue: existing?.companyName,
+      status: 'SUCCESS',
+    });
   };
 
   const toggleAdminCompanyPermissionStatus = (id: string) => {
@@ -967,7 +1253,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       }
     }
 
-    addAuditLog('CREATE', 'Sales Invoice', `Created invoice ${invoiceNo} for ${newInvoice.customerName} (₹${newInvoice.grandTotal.toLocaleString('en-IN')})`);
+    addAuditLog('CREATE', 'Sales Invoice', `Created invoice ${invoiceNo} for ${newInvoice.customerName} (₹${newInvoice.grandTotal.toLocaleString('en-IN')})`, {
+      recordId: invoiceNo,
+      newValue: `Total: ₹${newInvoice.grandTotal} | Status: ${newInvoice.status} | Customer: ${newInvoice.customerName}`,
+      companyId: activeCompany?.id,
+      companyName: activeCompany?.name
+    });
     return newInvoice;
   };
 
@@ -983,7 +1274,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
 
     setSalesInvoices(prev => prev.map(inv => inv.id === invoiceId ? { ...inv, ...data } : inv));
-    addAuditLog('UPDATE', 'Sales Invoice', `Edited invoice ${existing.invoiceNo}. Status: ${data.status || existing.status}`);
+    addAuditLog('UPDATE', 'Sales Invoice', `Edited invoice ${existing.invoiceNo}. Status: ${data.status || existing.status}`, {
+      recordId: existing.invoiceNo,
+      oldValue: `Status: ${existing.status} | Total: ₹${existing.grandTotal}`,
+      newValue: `Status: ${data.status || existing.status} | Total: ₹${data.grandTotal ?? existing.grandTotal}`,
+      companyId: existing.companyId,
+      companyName: activeCompany?.name
+    });
     return true;
   };
 
@@ -1066,7 +1363,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       }
     }
 
-    addAuditLog('DELETE', 'Sales Invoice', `Cancelled invoice ${existing.invoiceNo}. Reason: ${reason}`);
+    addAuditLog('DELETE', 'Sales Invoice', `Cancelled invoice ${existing.invoiceNo}. Reason: ${reason}`, {
+      recordId: existing.invoiceNo,
+      oldValue: `Status: ${existing.status} | Total: ₹${existing.grandTotal}`,
+      newValue: `Status: CANCELLED | Reason: ${reason}`,
+      companyId: existing.companyId,
+      companyName: activeCompany?.name
+    });
     return true;
   };
 
@@ -1085,7 +1388,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
 
     setSalesInvoices(prev => prev.filter(inv => inv.id !== invoiceId));
-    addAuditLog('DELETE', 'Sales Invoice', `Permanently deleted invoice ${existing.invoiceNo}`);
+    addAuditLog('DELETE', 'Sales Invoice', `Permanently deleted invoice ${existing.invoiceNo}`, {
+      recordId: existing.invoiceNo,
+      oldValue: `Invoice ${existing.invoiceNo} (₹${existing.grandTotal})`,
+      newValue: 'DELETED',
+      companyId: existing.companyId,
+      companyName: activeCompany?.name
+    });
     return true;
   };
 
@@ -1094,7 +1403,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     if (!existing) return false;
 
     setPurchaseInvoices(prev => prev.filter(inv => inv.id !== invoiceId));
-    addAuditLog('DELETE', 'Purchase Invoice', `Permanently deleted purchase invoice ${existing.invoiceNo}`);
+    addAuditLog('DELETE', 'Purchase Invoice', `Permanently deleted purchase invoice ${existing.invoiceNo}`, {
+      recordId: existing.invoiceNo,
+      oldValue: `Purchase Invoice ${existing.invoiceNo} (₹${existing.grandTotal})`,
+      newValue: 'DELETED',
+      companyId: existing.companyId,
+      companyName: activeCompany?.name
+    });
     return true;
   };
 
@@ -1191,7 +1506,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       signedQrCode: qrPayload,
     } : i));
 
-    addAuditLog('GENERATE_IRN', 'e-Invoice', `IRN Generated successfully for Invoice ${inv.invoiceNo} (Ack No: ${mockAckNo})`);
+    addAuditLog('GENERATE_IRN', 'e-Invoice', `IRN Generated successfully for Invoice ${inv.invoiceNo} (Ack No: ${mockAckNo})`, {
+      recordId: inv.invoiceNo,
+      newValue: `IRN: ${mockHash.substring(0, 16)}... | AckNo: ${mockAckNo}`,
+      companyId: inv.companyId,
+      companyName: activeCompany?.name
+    });
     return { success: true, irn: mockHash, message: `IRN ${mockHash.substring(0, 16)}... generated successfully` };
   };
 
@@ -1205,7 +1525,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       irnCancelledReason: `Code ${reasonCode}: ${reason}`,
     } : i));
 
-    addAuditLog('CANCEL_IRN', 'e-Invoice', `IRN Cancelled for Invoice ${inv.invoiceNo}. Reason: ${reason}`);
+    addAuditLog('CANCEL_IRN', 'e-Invoice', `IRN Cancelled for Invoice ${inv.invoiceNo}. Reason: ${reason}`, {
+      recordId: inv.invoiceNo,
+      oldValue: `IRN: ${inv.irn || 'Active'}`,
+      newValue: `CANCELLED (Reason: ${reason})`,
+      companyId: inv.companyId,
+      companyName: activeCompany?.name
+    });
     return { success: true, message: `IRN cancelled successfully for invoice ${inv.invoiceNo}` };
   };
 
@@ -1232,7 +1558,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       ewayBillTransportMode: transportData.transportMode,
     } : i));
 
-    addAuditLog('GENERATE_EWAY', 'E-Way Bill', `Generated E-Way Bill ${ewbNo} for invoice ${inv.invoiceNo} (Vehicle: ${transportData.vehicleNo})`);
+    addAuditLog('GENERATE_EWAY', 'E-Way Bill', `Generated E-Way Bill ${ewbNo} for invoice ${inv.invoiceNo} (Vehicle: ${transportData.vehicleNo})`, {
+      recordId: inv.invoiceNo,
+      newValue: `EWB: ${ewbNo} | Vehicle: ${transportData.vehicleNo} | Valid Until: ${validUntil.toISOString().substring(0, 10)}`,
+      companyId: inv.companyId,
+      companyName: activeCompany?.name
+    });
     return { success: true, ewbNo, message: `E-Way Bill ${ewbNo} generated successfully` };
   };
 
@@ -1284,7 +1615,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       } : p));
     }
 
-    addAuditLog('CREATE', 'Purchase', `Recorded Purchase ${invoiceNo} from ${newPurchase.supplierName} (₹${newPurchase.grandTotal})`);
+    addAuditLog('CREATE', 'Purchase', `Recorded Purchase ${invoiceNo} from ${newPurchase.supplierName} (₹${newPurchase.grandTotal})`, {
+      recordId: invoiceNo,
+      newValue: `Supplier: ${newPurchase.supplierName} | Grand Total: ₹${newPurchase.grandTotal}`,
+      companyId: activeCompany?.id,
+      companyName: activeCompany?.name
+    });
     return newPurchase;
   };
 
@@ -1503,6 +1839,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         updateAdminCompanyPermission,
         removeAdminCompanyPermission,
         toggleAdminCompanyPermissionStatus,
+        assignCompanyToUser,
+        removeCompanyFromUser,
         getAuthorizedCompaniesForUser,
         getAuthorizedCompaniesForMobile,
         activeModule,
@@ -1514,6 +1852,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         loginWithOtp,
         requestOtp,
         verifyOtp,
+        selectActiveCompanyAndLogin,
         quickLogin,
         logout,
         hasPermission,

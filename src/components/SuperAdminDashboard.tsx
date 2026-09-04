@@ -34,11 +34,18 @@ export const SuperAdminDashboard: React.FC = () => {
     activeCompany,
     auditLogs,
     gstConfig,
-    updateGSTConfig
+    updateGSTConfig,
+    assignCompanyToUser,
+    removeCompanyFromUser,
+    getAuthorizedCompaniesForUser,
+    adminCompanyPermissions
   } = useApp();
 
   const [activeTab, setActiveTab] = useState<'COMPANIES' | 'USERS' | 'PLANS' | 'API_CONFIG' | 'AUDIT'>('COMPANIES');
   
+  // Selected user for company assignments modal
+  const [selectedUserForAssignment, setSelectedUserForAssignment] = useState<User | null>(null);
+
   // New Company Modal state
   const [showAddCompanyModal, setShowAddCompanyModal] = useState(false);
   const [companyForm, setCompanyForm] = useState({
@@ -68,13 +75,14 @@ export const SuperAdminDashboard: React.FC = () => {
     planValidTill: '2026-12-31',
   });
 
-  // New User Modal state
+  // New User Modal state with Multi-Company selection
   const [showAddUserModal, setShowAddUserModal] = useState(false);
   const [userForm, setUserForm] = useState({
     name: '',
     mobile: '',
     role: 'ADMIN' as UserRole,
     companyId: companies?.[0]?.id || '',
+    assignedCompanyIds: [companies?.[0]?.id || 'comp-1'],
     assignedAdminId: '',
     permissions: {
       sales: true,
@@ -88,6 +96,10 @@ export const SuperAdminDashboard: React.FC = () => {
     },
     active: true,
   });
+
+  // Audit filters for Tab 5
+  const [auditCompanyFilter, setAuditCompanyFilter] = useState('ALL');
+  const [auditActionFilter, setAuditActionFilter] = useState('ALL');
 
   const handleCreateCompany = (e: React.FormEvent) => {
     e.preventDefault();
@@ -132,13 +144,24 @@ export const SuperAdminDashboard: React.FC = () => {
       alert('Name and Mobile number are required');
       return;
     }
-    createUser(userForm);
+
+    const assignedIds = userForm.assignedCompanyIds && userForm.assignedCompanyIds.length > 0
+      ? userForm.assignedCompanyIds
+      : [userForm.companyId || companies?.[0]?.id || 'comp-1'];
+
+    createUser({
+      ...userForm,
+      companyId: assignedIds[0],
+      assignedCompanyIds: assignedIds
+    });
+
     setShowAddUserModal(false);
     setUserForm({
       name: '',
       mobile: '',
       role: 'STAFF',
       companyId: companies?.[0]?.id || '',
+      assignedCompanyIds: [companies?.[0]?.id || 'comp-1'],
       assignedAdminId: '',
       permissions: {
         sales: true,
@@ -412,7 +435,7 @@ export const SuperAdminDashboard: React.FC = () => {
                   <th className="px-4 py-3">User Name</th>
                   <th className="px-4 py-3">Mobile (OTP Login)</th>
                   <th className="px-4 py-3">Role</th>
-                  <th className="px-4 py-3">Assigned Company</th>
+                  <th className="px-4 py-3">Assigned Companies</th>
                   <th className="px-4 py-3">Assigned Admin</th>
                   <th className="px-4 py-3">Status</th>
                   <th className="px-4 py-3 text-right">Actions</th>
@@ -420,8 +443,8 @@ export const SuperAdminDashboard: React.FC = () => {
               </thead>
               <tbody className="divide-y divide-slate-100 dark:divide-slate-700">
                 {users.map(u => {
-                  const assignedComp = companies.find(c => c.id === u.companyId);
                   const assignedAdmin = users.find(a => a.id === u.assignedAdminId);
+                  const authorizedComps = getAuthorizedCompaniesForUser(u);
 
                   return (
                     <tr key={u.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-700/30">
@@ -441,12 +464,33 @@ export const SuperAdminDashboard: React.FC = () => {
                         </span>
                       </td>
                       <td className="px-4 py-3">
-                        {assignedComp ? (
-                          <span className="font-medium text-slate-800 dark:text-slate-200">
-                            {assignedComp.name}
-                          </span>
+                        {u.role === 'SUPER_ADMIN' ? (
+                          <div className="flex items-center gap-1.5 text-purple-600 dark:text-purple-400 font-semibold text-[11px]">
+                            <ShieldCheck className="w-3.5 h-3.5 shrink-0" />
+                            <span>All Companies (Global Super Admin)</span>
+                          </div>
                         ) : (
-                          <span className="text-slate-400 italic">All Companies (Super)</span>
+                          <div className="space-y-1">
+                            {authorizedComps.length > 0 ? (
+                              <div className="flex flex-wrap gap-1 items-center max-w-xs">
+                                {authorizedComps.map(c => (
+                                  <span 
+                                    key={c.id} 
+                                    className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-medium bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 border border-indigo-200/60 dark:border-indigo-800/60"
+                                    title={`GSTIN: ${c.gstin} • State: ${c.stateCode}`}
+                                  >
+                                    <Building2 className="w-2.5 h-2.5 shrink-0" />
+                                    <span className="truncate max-w-[120px]">{c.name}</span>
+                                  </span>
+                                ))}
+                              </div>
+                            ) : (
+                              <span className="text-rose-500 italic text-[11px]">No company assigned</span>
+                            )}
+                            <div className="text-[10px] text-slate-400">
+                              {authorizedComps.length} {authorizedComps.length === 1 ? 'company assigned' : 'companies assigned'}
+                            </div>
+                          </div>
                         )}
                       </td>
                       <td className="px-4 py-3 text-slate-500">
@@ -464,13 +508,29 @@ export const SuperAdminDashboard: React.FC = () => {
                         )}
                       </td>
                       <td className="px-4 py-3 text-right">
-                        {u.role !== 'SUPER_ADMIN' && (
-                          <button
-                            onClick={() => toggleUserActive(u.id)}
-                            className="text-xs text-blue-600 hover:underline font-medium"
-                          >
-                            {u.active ? 'Deactivate' : 'Activate'}
-                          </button>
+                        {u.role !== 'SUPER_ADMIN' ? (
+                          <div className="flex items-center justify-end gap-1.5">
+                            <button
+                              onClick={() => setSelectedUserForAssignment(u)}
+                              className="px-2.5 py-1 rounded-lg bg-indigo-50 hover:bg-indigo-100 dark:bg-indigo-950/60 dark:hover:bg-indigo-900/60 text-indigo-700 dark:text-indigo-300 font-semibold text-[11px] flex items-center gap-1 transition-colors border border-indigo-200/60 dark:border-indigo-800/60"
+                              title="Assign or remove multiple companies"
+                            >
+                              <Building2 className="w-3.5 h-3.5" />
+                              <span>Assign Companies</span>
+                            </button>
+                            <button
+                              onClick={() => toggleUserActive(u.id)}
+                              className={`text-[11px] font-semibold px-2 py-1 rounded-lg transition-colors ${
+                                u.active 
+                                  ? 'text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/30' 
+                                  : 'text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-950/30'
+                              }`}
+                            >
+                              {u.active ? 'Deactivate' : 'Activate'}
+                            </button>
+                          </div>
+                        ) : (
+                          <span className="text-[11px] text-slate-400 font-mono">Protected</span>
                         )}
                       </td>
                     </tr>
@@ -613,43 +673,130 @@ export const SuperAdminDashboard: React.FC = () => {
 
       {/* Tab 5: Cross-Company Audit Trail */}
       {activeTab === 'AUDIT' && (
-        <div className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 overflow-hidden shadow-xs">
-          <div className="px-5 py-4 border-b border-slate-100 dark:border-slate-700">
-            <h2 className="font-bold text-sm text-slate-900 dark:text-white">Global Activity &amp; Audit Logs</h2>
-            <p className="text-xs text-slate-500">Every create, update, delete, IRN, E-Way Bill and login action is recorded</p>
+        <div className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 overflow-hidden shadow-xs space-y-4 p-5">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 dark:border-slate-700 pb-4">
+            <div>
+              <div className="flex items-center gap-2">
+                <h2 className="font-bold text-sm sm:text-base text-slate-900 dark:text-white">Global Cross-Company Activity &amp; Audit Logs</h2>
+                <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-purple-100 text-purple-700 dark:bg-purple-950 dark:text-purple-300">
+                  Immutable Log
+                </span>
+              </div>
+              <p className="text-xs text-slate-500 mt-0.5">
+                Every create, update, delete, company assignment, IRN, E-Way Bill and login action across all tenant companies is recorded.
+              </p>
+            </div>
+
+            {/* Filters */}
+            <div className="flex items-center gap-2">
+              <select
+                value={auditCompanyFilter}
+                onChange={e => setAuditCompanyFilter(e.target.value)}
+                className="py-1.5 px-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-white text-xs font-medium"
+              >
+                <option value="ALL">All Companies ({companies.length})</option>
+                {companies.map(c => (
+                  <option key={c.id} value={c.id}>{c.name}</option>
+                ))}
+              </select>
+
+              <select
+                value={auditActionFilter}
+                onChange={e => setAuditActionFilter(e.target.value)}
+                className="py-1.5 px-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-white text-xs font-medium"
+              >
+                <option value="ALL">All Actions</option>
+                <option value="CREATE">CREATE</option>
+                <option value="UPDATE">UPDATE</option>
+                <option value="DELETE">DELETE</option>
+                <option value="COMPANY_ASSIGN">COMPANY_ASSIGN</option>
+                <option value="COMPANY_SWITCH">COMPANY_SWITCH</option>
+                <option value="LOGIN">LOGIN</option>
+                <option value="LOGOUT">LOGOUT</option>
+                <option value="GENERATE_IRN">GENERATE_IRN</option>
+              </select>
+            </div>
           </div>
 
-          <div className="overflow-x-auto">
+          <div className="overflow-x-auto rounded-xl border border-slate-200 dark:border-slate-700">
             <table className="w-full text-xs text-left">
               <thead className="bg-slate-50 dark:bg-slate-900/60 text-slate-500 border-b border-slate-200 dark:border-slate-700">
                 <tr>
-                  <th className="px-4 py-3">Timestamp</th>
-                  <th className="px-4 py-3">User &amp; Role</th>
-                  <th className="px-4 py-3">Action</th>
-                  <th className="px-4 py-3">Module</th>
-                  <th className="px-4 py-3">Details</th>
-                  <th className="px-4 py-3">IP Address</th>
+                  <th className="px-3.5 py-3">Timestamp (IST)</th>
+                  <th className="px-3.5 py-3">Company Workspace</th>
+                  <th className="px-3.5 py-3">User &amp; Mobile</th>
+                  <th className="px-3.5 py-3">Action</th>
+                  <th className="px-3.5 py-3">Module</th>
+                  <th className="px-3.5 py-3">Record ID</th>
+                  <th className="px-3.5 py-3">Details</th>
+                  <th className="px-3.5 py-3">Status</th>
+                  <th className="px-3.5 py-3 text-right">IP</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 dark:divide-slate-700 font-mono">
-                {auditLogs.map(log => (
-                  <tr key={log.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-700/30">
-                    <td className="px-4 py-2.5 text-slate-500">{log.timestamp}</td>
-                    <td className="px-4 py-2.5 font-sans font-semibold text-slate-900 dark:text-white">
-                      {log.userName} ({log.userRole})
-                    </td>
-                    <td className="px-4 py-2.5 font-sans">
-                      <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300">
-                        {log.action}
-                      </span>
-                    </td>
-                    <td className="px-4 py-2.5 font-sans text-slate-600 dark:text-slate-300">{log.module}</td>
-                    <td className="px-4 py-2.5 font-sans text-slate-800 dark:text-slate-200 max-w-xs truncate" title={log.details}>
-                      {log.details}
-                    </td>
-                    <td className="px-4 py-2.5 text-slate-400">{log.ip}</td>
-                  </tr>
-                ))}
+                {auditLogs
+                  .filter(log => {
+                    if (auditCompanyFilter !== 'ALL' && log.companyId !== auditCompanyFilter) return false;
+                    if (auditActionFilter !== 'ALL' && log.action !== auditActionFilter) return false;
+                    return true;
+                  })
+                  .map(log => {
+                    const comp = companies.find(c => c.id === log.companyId);
+                    const compName = log.companyName || comp?.name || 'Global / All';
+
+                    return (
+                      <tr key={log.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-700/30">
+                        <td className="px-3.5 py-2.5 text-slate-500 whitespace-nowrap text-[11px]">
+                          {log.formattedTimestamp || log.timestamp}
+                        </td>
+                        <td className="px-3.5 py-2.5 font-sans whitespace-nowrap">
+                          <span className="font-semibold text-slate-900 dark:text-white" title={compName}>
+                            {compName}
+                          </span>
+                        </td>
+                        <td className="px-3.5 py-2.5 font-sans whitespace-nowrap">
+                          <div className="font-semibold text-slate-900 dark:text-white">{log.userName}</div>
+                          <div className="text-[10px] text-slate-400 font-mono">
+                            {log.userRole?.replace('_', ' ')} {log.userMobile ? `• +91 ${log.userMobile}` : ''}
+                          </div>
+                        </td>
+                        <td className="px-3.5 py-2.5 font-sans whitespace-nowrap">
+                          <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase ${
+                            log.action === 'CREATE' ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300' :
+                            log.action === 'COMPANY_ASSIGN' || log.action === 'COMPANY_SWITCH' ? 'bg-purple-100 text-purple-800 dark:bg-purple-950 dark:text-purple-300' :
+                            log.action === 'DELETE' ? 'bg-rose-100 text-rose-800 dark:bg-rose-950 dark:text-rose-300' :
+                            log.action === 'LOGIN' ? 'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300' :
+                            'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300'
+                          }`}>
+                            {log.action}
+                          </span>
+                        </td>
+                        <td className="px-3.5 py-2.5 font-sans text-slate-600 dark:text-slate-300 whitespace-nowrap font-medium">
+                          {log.module}
+                        </td>
+                        <td className="px-3.5 py-2.5 text-slate-500 font-mono text-[11px] whitespace-nowrap">
+                          {log.recordId || '—'}
+                        </td>
+                        <td className="px-3.5 py-2.5 font-sans text-slate-700 dark:text-slate-200 max-w-xs truncate" title={log.details}>
+                          {log.details}
+                        </td>
+                        <td className="px-3.5 py-2.5 font-sans whitespace-nowrap">
+                          {(log.status || 'SUCCESS') === 'SUCCESS' ? (
+                            <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950 px-1.5 py-0.5 rounded">
+                              SUCCESS
+                            </span>
+                          ) : (
+                            <span className="text-[10px] font-bold text-rose-600 dark:text-rose-400 bg-rose-50 dark:bg-rose-950 px-1.5 py-0.5 rounded">
+                              FAILED
+                            </span>
+                          )}
+                        </td>
+                        <td className="px-3.5 py-2.5 text-slate-400 text-right text-[11px] whitespace-nowrap">
+                          {log.ip || '127.0.0.1'}
+                        </td>
+                      </tr>
+                    );
+                  })}
               </tbody>
             </table>
           </div>
@@ -860,17 +1007,42 @@ export const SuperAdminDashboard: React.FC = () => {
                 </div>
 
                 {userForm.role !== 'SUPER_ADMIN' && (
-                  <div>
-                    <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">Bound Company *</label>
-                    <select
-                      value={userForm.companyId}
-                      onChange={e => setUserForm({ ...userForm, companyId: e.target.value })}
-                      className="w-full p-2.5 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900"
-                    >
-                      {companies.map(c => (
-                        <option key={c.id} value={c.id}>{c.name}</option>
-                      ))}
-                    </select>
+                  <div className="col-span-2 space-y-1">
+                    <label className="block font-semibold text-slate-700 dark:text-slate-300">
+                      Assigned Company Workspaces (Select 1 or more) *
+                    </label>
+                    <div className="max-h-36 overflow-y-auto space-y-1 p-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900">
+                      {companies.map(c => {
+                        const isChecked = (userForm.assignedCompanyIds || []).includes(c.id);
+                        return (
+                          <label key={c.id} className="flex items-center gap-2 p-1.5 rounded-lg hover:bg-white dark:hover:bg-slate-800 cursor-pointer text-xs">
+                            <input
+                              type="checkbox"
+                              checked={isChecked}
+                              onChange={e => {
+                                const current = userForm.assignedCompanyIds || [];
+                                let next: string[];
+                                if (e.target.checked) {
+                                  next = Array.from(new Set([...current, c.id]));
+                                } else {
+                                  next = current.filter(id => id !== c.id);
+                                }
+                                setUserForm({
+                                  ...userForm,
+                                  assignedCompanyIds: next,
+                                  companyId: next[0] || c.id
+                                });
+                              }}
+                              className="rounded text-purple-600 focus:ring-purple-500"
+                            />
+                            <div className="min-w-0 flex-1">
+                              <span className="font-semibold text-slate-900 dark:text-white">{c.name}</span>
+                              <span className="text-[10px] text-slate-400 font-mono ml-1.5">({c.gstin} • {c.city})</span>
+                            </div>
+                          </label>
+                        );
+                      })}
+                    </div>
                   </div>
                 )}
               </div>
@@ -891,6 +1063,120 @@ export const SuperAdminDashboard: React.FC = () => {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Modal: Manage Multi-Company Assignments */}
+      {selectedUserForAssignment && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/70 backdrop-blur-xs p-4 overflow-y-auto">
+          <div className="w-full max-w-lg bg-white dark:bg-slate-900 rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-800 p-6 space-y-4">
+            <div className="flex items-start justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
+              <div>
+                <div className="flex items-center gap-2">
+                  <Building2 className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
+                  <h2 className="text-base font-bold text-slate-900 dark:text-white">
+                    Manage Company Assignments
+                  </h2>
+                </div>
+                <p className="text-xs text-slate-500 mt-1">
+                  User: <strong className="text-slate-800 dark:text-slate-200">{selectedUserForAssignment.name}</strong> • +91 {selectedUserForAssignment.mobile} • Role: {selectedUserForAssignment.role}
+                </p>
+              </div>
+              <button
+                onClick={() => setSelectedUserForAssignment(null)}
+                className="p-1 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 text-sm font-bold"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="p-3 bg-indigo-50/60 dark:bg-indigo-950/40 rounded-xl text-xs text-indigo-900 dark:text-indigo-200 border border-indigo-100 dark:border-indigo-900/60">
+              Super Admin can assign or revoke companies for this Admin. When logging in via OTP with <strong>+91 {selectedUserForAssignment.mobile}</strong>, the user will be presented with their authorized companies and can switch seamlessly in the workspace.
+            </div>
+
+            <div className="space-y-2 max-h-72 overflow-y-auto pr-1">
+              {companies.map(comp => {
+                const assignedComps = getAuthorizedCompaniesForUser(selectedUserForAssignment);
+                const isAssigned = assignedComps.some(c => c.id === comp.id);
+
+                return (
+                  <div
+                    key={comp.id}
+                    className={`flex items-center justify-between p-3 rounded-xl border transition-colors ${
+                      isAssigned 
+                        ? 'border-indigo-300 dark:border-indigo-700 bg-indigo-50/30 dark:bg-indigo-950/30' 
+                        : 'border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/50'
+                    }`}
+                  >
+                    <div className="min-w-0 pr-3">
+                      <div className="flex items-center gap-1.5">
+                        <span className="font-bold text-xs text-slate-900 dark:text-white truncate">
+                          {comp.name}
+                        </span>
+                        {comp.active ? (
+                          <span className="text-[9px] px-1.5 py-0.2 rounded bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300 font-bold">
+                            Active
+                          </span>
+                        ) : (
+                          <span className="text-[9px] px-1.5 py-0.2 rounded bg-slate-100 text-slate-500 font-bold">
+                            Inactive
+                          </span>
+                        )}
+                      </div>
+                      <div className="text-[11px] text-slate-500 font-mono mt-0.5">
+                        GSTIN: {comp.gstin} • State: {comp.stateCode} ({comp.state})
+                      </div>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (isAssigned) {
+                          removeCompanyFromUser(selectedUserForAssignment.id, comp.id);
+                        } else {
+                          assignCompanyToUser(selectedUserForAssignment.id, comp.id);
+                        }
+                        // Update local selection reference
+                        const updatedUser = users.find(u => u.id === selectedUserForAssignment.id);
+                        if (updatedUser) {
+                          setSelectedUserForAssignment({ ...updatedUser });
+                        }
+                      }}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-colors shrink-0 ${
+                        isAssigned
+                          ? 'bg-rose-50 text-rose-700 hover:bg-rose-100 dark:bg-rose-950/60 dark:text-rose-300 border border-rose-200 dark:border-rose-900'
+                          : 'bg-indigo-600 text-white hover:bg-indigo-700 shadow-2xs'
+                      }`}
+                    >
+                      {isAssigned ? (
+                        <>
+                          <XCircle className="w-3.5 h-3.5" />
+                          <span>Revoke Access</span>
+                        </>
+                      ) : (
+                        <>
+                          <CheckCircle2 className="w-3.5 h-3.5" />
+                          <span>Assign Access</span>
+                        </>
+                      )}
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+
+            <div className="flex items-center justify-between pt-3 border-t border-slate-100 dark:border-slate-800">
+              <span className="text-xs text-slate-500">
+                Currently assigned: <strong className="text-indigo-600 dark:text-indigo-400">{getAuthorizedCompaniesForUser(selectedUserForAssignment).length}</strong> workspaces
+              </span>
+              <button
+                onClick={() => setSelectedUserForAssignment(null)}
+                className="px-4 py-2 rounded-xl bg-slate-900 text-white hover:bg-slate-800 dark:bg-slate-100 dark:text-slate-900 text-xs font-semibold"
+              >
+                Done
+              </button>
+            </div>
           </div>
         </div>
       )}
